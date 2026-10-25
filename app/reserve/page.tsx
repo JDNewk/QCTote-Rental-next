@@ -4,25 +4,25 @@ import Link from "next/link";
 import { ChangeEvent, FormEvent, useState } from "react";
 
 const FREE_AREAS = [
-  "Davenport, IA",
   "Bettendorf, IA",
-  "Rock Island, IL",
-  "Moline, IL",
-  "East Moline, IL",
-  "Silvis, IL",
-  "Milan, IL",
-  "Geneseo, IL",
   "Coal Valley, IL",
   "Colona, IL",
-  "Port Byron, IL",
+  "Davenport, IA",
+  "East Moline, IL",
+  "Geneseo, IL",
   "LeClaire, IA",
+  "Milan, IL",
+  "Moline, IL",
+  "Port Byron, IL",
+  "Rock Island, IL",
+  "Silvis, IL",
 ];
 
 const FEE_AREAS = [
-  "Muscatine, IA",
   "Clinton, IA",
-  "Eldridge, IA",
   "DeWitt, IA",
+  "Eldridge, IA",
+  "Muscatine, IA",
   "Orion, IL",
 ];
 
