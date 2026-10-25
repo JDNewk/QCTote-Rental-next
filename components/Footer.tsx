@@ -1,23 +1,45 @@
+import Link from "next/link";
 import { siteConfig } from "../config/siteConfig";
 
 export default function Footer() {
   return (
-    <footer className="bg-gray-100 border-t py-8 mt-20">
-      <div className="mx-auto max-w-6xl px-6 flex flex-col md:flex-row justify-between items-center gap-6 text-gray-700 text-sm">
+    <footer className="bg-slate-950 text-slate-300">
+      <div className="mx-auto max-w-6xl px-6 py-12">
+        <div className="grid gap-10 md:grid-cols-3 md:items-start">
+          <div>
+            <Link href="/" className="text-2xl font-black text-white">
+              QC Tote <span className="text-lime-400">Rental</span>
+            </Link>
+            <p className="mt-3 max-w-sm text-sm leading-6 text-slate-400">
+              Durable, reusable moving totes delivered to your door throughout
+              the Illinois and Iowa Quad Cities.
+            </p>
+          </div>
 
-        <p className="text-center md:text-left">
-          © 2026 QC Tote Rental — Quad Cities, IL & IA
-        </p>
+          <div>
+            <h3 className="font-bold text-white">Quick Links</h3>
+            <div className="mt-4 flex flex-col gap-3 text-sm">
+              <Link href="/pricing" className="hover:text-lime-400 transition">Pricing</Link>
+              <Link href="/service-area" className="hover:text-lime-400 transition">Service Area</Link>
+              <Link href="/reserve" className="hover:text-lime-400 transition">Reserve Totes</Link>
+              <Link href="/agreement" className="hover:text-lime-400 transition">Rental Agreement</Link>
+              <Link href="/contact" className="hover:text-lime-400 transition">Contact</Link>
+            </div>
+          </div>
 
-        <div className="flex flex-col md:flex-row items-center gap-3 md:gap-6 text-gray-700 font-medium">
-          <a href={siteConfig.phoneHref} className="hover:text-blue-600">
-            📞 {siteConfig.phone}
-          </a>
-          <a href={siteConfig.emailHref} className="hover:text-blue-600">
-            ✉️ {siteConfig.email}
-          </a>
+          <div>
+            <h3 className="font-bold text-white">Contact</h3>
+            <div className="mt-4 flex flex-col gap-3 text-sm">
+              <a href={siteConfig.phoneHref} className="hover:text-lime-400 transition">
+                📞 {siteConfig.phone}
+              </a>
+            </div>
+          </div>
         </div>
 
+        <div className="mt-10 border-t border-slate-800 pt-6 text-center text-sm text-slate-500 md:text-left">
+          © 2026 QC Tote Rental — Quad Cities, IL & IA
+        </div>
       </div>
     </footer>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { ChangeEvent, FormEvent, useState } from "react";
 
 const FREE_AREAS = [
@@ -24,6 +25,12 @@ const FEE_AREAS = [
   "DeWitt, IA",
   "Orion, IL",
 ];
+
+const inputClass =
+  "w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-lime-500 focus:ring-4 focus:ring-lime-400/20";
+
+const checkboxClass =
+  "mt-1 h-5 w-5 shrink-0 accent-lime-500";
 
 export default function ReservePage() {
   const [form, setForm] = useState({
@@ -174,258 +181,470 @@ export default function ReservePage() {
   );
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-8">
-      <h1 className="mb-6 text-center text-3xl font-bold">
-        Reserve Your Totes
-      </h1>
-
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-4 rounded-xl bg-white p-6 shadow-sm"
-      >
-        <div>
-          <label htmlFor="name" className="mb-2 block font-medium">
-            Full Name
-          </label>
-          <input
-            id="name"
-            type="text"
-            name="name"
-            required
-            value={form.name}
-            onChange={handleChange}
-            className="w-full rounded-lg border px-4 py-2"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="email" className="mb-2 block font-medium">
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            name="email"
-            required
-            value={form.email}
-            onChange={handleChange}
-            className="w-full rounded-lg border px-4 py-2"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="phone" className="mb-2 block font-medium">
-            Phone Number
-          </label>
-          <input
-            id="phone"
-            type="tel"
-            name="phone"
-            required
-            value={form.phone}
-            onChange={handleChange}
-            className="w-full rounded-lg border px-4 py-2"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="address" className="mb-2 block font-medium">
-            Delivery Address
-          </label>
-          <input
-            id="address"
-            type="text"
-            name="address"
-            required
-            value={form.address}
-            onChange={handleChange}
-            className="w-full rounded-lg border px-4 py-2"
-          />
-        </div>
-
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <h2 className="mb-1 text-lg font-semibold">Requested Rental Dates</h2>
-          <p className="mb-4 text-sm text-gray-600">
-            Select your requested delivery date. The pickup date defaults to 14 days later and can be adjusted if needed.
+    <main className="bg-slate-50 text-slate-950">
+      <section className="bg-slate-950 text-white">
+        <div className="mx-auto max-w-6xl px-6 py-14 text-center md:py-16">
+          <p className="font-bold uppercase tracking-[0.2em] text-lime-400">
+            Start Your Reservation
           </p>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <label
-                htmlFor="deliveryDate"
-                className="mb-2 block font-medium"
-              >
-                Requested Delivery Date
-              </label>
-              <input
-                id="deliveryDate"
-                type="date"
-                name="deliveryDate"
-                required
-                value={form.deliveryDate}
-                onChange={handleChange}
-                className="w-full rounded-lg border bg-white px-4 py-2"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="pickupDate"
-                className="mb-2 block font-medium"
-              >
-                Requested Pickup Date
-              </label>
-              <input
-                id="pickupDate"
-                type="date"
-                name="pickupDate"
-                required
-                min={form.deliveryDate || undefined}
-                value={form.pickupDate}
-                onChange={handleChange}
-                className="w-full rounded-lg border bg-white px-4 py-2"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <h2 className="mb-1 text-lg font-semibold">
-            Delivery and Pickup Area
-          </h2>
-          <p className="mb-4 text-sm text-gray-600">
-            Select both towns to see whether a service-area fee applies.
-          </p>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <label htmlFor="deliveryArea" className="mb-2 block font-medium">
-                Delivery Town
-              </label>
-              <select
-                id="deliveryArea"
-                name="deliveryArea"
-                required
-                value={form.deliveryArea}
-                onChange={handleChange}
-                className="w-full rounded-lg border bg-white px-4 py-2"
-              >
-                <option value="">Select delivery town</option>
-                {renderAreaOptions("delivery")}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="pickupArea" className="mb-2 block font-medium">
-                Pickup Town
-              </label>
-              <select
-                id="pickupArea"
-                name="pickupArea"
-                required
-                value={form.pickupArea}
-                onChange={handleChange}
-                className="w-full rounded-lg border bg-white px-4 py-2"
-              >
-                <option value="">Select pickup town</option>
-                {renderAreaOptions("pickup")}
-              </select>
-            </div>
-          </div>
-
-          {!locationsSelected && (
-            <p className="mt-4 rounded-lg bg-blue-50 p-3 text-sm text-blue-800">
-              Select the delivery and pickup towns to calculate your fee.
-            </p>
-          )}
-
-          {locationsSelected && serviceAreaFee === 0 && (
-            <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-3 text-green-800" aria-live="polite">
-              <p className="font-semibold">Free delivery and pickup</p>
-              <p className="text-sm">Both locations are within our free service area.</p>
-            </div>
-          )}
-
-          {locationsSelected && serviceAreaFee > 0 && (
-            <div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-yellow-900" aria-live="polite">
-              <p className="font-semibold">Service-area fee: ${serviceAreaFee}</p>
-              <ul className="mt-1 list-disc pl-5 text-sm">
-                {deliveryFee > 0 && <li>Delivery outside the free zone: $15</li>}
-                {pickupFee > 0 && <li>Pickup outside the free zone: $15</li>}
-              </ul>
-            </div>
-          )}
-
-          <p className="mt-3 text-sm text-gray-600">
-            Not seeing your town? Contact us before reserving. We may still be able to serve your location.
+          <h1 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">
+            Reserve Your Moving Totes
+          </h1>
+          <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-slate-300">
+            Choose your dates, service locations, and tote package. We will
+            confirm availability before your reservation is finalized.
           </p>
         </div>
+      </section>
 
-        <div>
-          <label htmlFor="totePackage" className="mb-2 block font-medium">
-            Tote Package
-          </label>
-          <select
-            id="totePackage"
-            name="totePackage"
-            value={form.totePackage}
-            onChange={handleChange}
-            className="w-full rounded-lg border bg-white px-4 py-2"
+      <section className="mx-auto max-w-6xl px-6 py-12 lg:py-16">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"
           >
-            <option value="20-totes">20 Totes - $99 | $40/week extension</option>
-            <option value="40-totes">40 Totes - $169 | $70/week extension</option>
-            <option value="60-totes">60 Totes - $219 | $100/week extension</option>
-          </select>
-          <p className="mt-1 text-sm text-gray-600">All tote packages include a 2-week rental.</p>
-          <p className="mt-1 text-sm font-semibold text-blue-700">Additional rental weeks: ${extensionRate}/week</p>
+            <section>
+              <div className="mb-5 flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-lime-400 font-black text-slate-950">
+                  1
+                </span>
+                <div>
+                  <h2 className="text-xl font-black">Contact Information</h2>
+                  <p className="text-sm text-slate-600">
+                    Tell us where to reach you and deliver the totes.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-5 md:grid-cols-2">
+                <div>
+                  <label htmlFor="name" className="mb-2 block font-semibold">
+                    Full Name
+                  </label>
+                  <input
+                    id="name"
+                    type="text"
+                    name="name"
+                    required
+                    autoComplete="name"
+                    value={form.name}
+                    onChange={handleChange}
+                    className={inputClass}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="email" className="mb-2 block font-semibold">
+                    Email
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    name="email"
+                    required
+                    autoComplete="email"
+                    value={form.email}
+                    onChange={handleChange}
+                    className={inputClass}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="phone" className="mb-2 block font-semibold">
+                    Phone Number
+                  </label>
+                  <input
+                    id="phone"
+                    type="tel"
+                    name="phone"
+                    required
+                    autoComplete="tel"
+                    value={form.phone}
+                    onChange={handleChange}
+                    className={inputClass}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="address" className="mb-2 block font-semibold">
+                    Delivery Address
+                  </label>
+                  <input
+                    id="address"
+                    type="text"
+                    name="address"
+                    required
+                    autoComplete="street-address"
+                    value={form.address}
+                    onChange={handleChange}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+            </section>
+
+            <section className="border-t border-slate-200 pt-8">
+              <div className="mb-5 flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-lime-400 font-black text-slate-950">
+                  2
+                </span>
+                <div>
+                  <h2 className="text-xl font-black">Requested Rental Dates</h2>
+                  <p className="text-sm text-slate-600">
+                    Pickup defaults to 14 days after delivery and can be adjusted.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-5 md:grid-cols-2">
+                <div>
+                  <label
+                    htmlFor="deliveryDate"
+                    className="mb-2 block font-semibold"
+                  >
+                    Requested Delivery Date
+                  </label>
+                  <input
+                    id="deliveryDate"
+                    type="date"
+                    name="deliveryDate"
+                    required
+                    value={form.deliveryDate}
+                    onChange={handleChange}
+                    className={inputClass}
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="pickupDate"
+                    className="mb-2 block font-semibold"
+                  >
+                    Requested Pickup Date
+                  </label>
+                  <input
+                    id="pickupDate"
+                    type="date"
+                    name="pickupDate"
+                    required
+                    min={form.deliveryDate || undefined}
+                    value={form.pickupDate}
+                    onChange={handleChange}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+            </section>
+
+            <section className="border-t border-slate-200 pt-8">
+              <div className="mb-5 flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-lime-400 font-black text-slate-950">
+                  3
+                </span>
+                <div>
+                  <h2 className="text-xl font-black">Delivery & Pickup Area</h2>
+                  <p className="text-sm text-slate-600">
+                    Select both towns to calculate the service-area fee.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-5 md:grid-cols-2">
+                <div>
+                  <label
+                    htmlFor="deliveryArea"
+                    className="mb-2 block font-semibold"
+                  >
+                    Delivery Town
+                  </label>
+                  <select
+                    id="deliveryArea"
+                    name="deliveryArea"
+                    required
+                    value={form.deliveryArea}
+                    onChange={handleChange}
+                    className={inputClass}
+                  >
+                    <option value="">Select delivery town</option>
+                    {renderAreaOptions("delivery")}
+                  </select>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="pickupArea"
+                    className="mb-2 block font-semibold"
+                  >
+                    Pickup Town
+                  </label>
+                  <select
+                    id="pickupArea"
+                    name="pickupArea"
+                    required
+                    value={form.pickupArea}
+                    onChange={handleChange}
+                    className={inputClass}
+                  >
+                    <option value="">Select pickup town</option>
+                    {renderAreaOptions("pickup")}
+                  </select>
+                </div>
+              </div>
+
+              {!locationsSelected && (
+                <p className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                  Select the delivery and pickup towns to calculate your fee.
+                </p>
+              )}
+
+              {locationsSelected && serviceAreaFee === 0 && (
+                <div
+                  className="mt-5 rounded-xl border border-lime-300 bg-lime-50 p-4 text-slate-900"
+                  aria-live="polite"
+                >
+                  <p className="font-bold">Free delivery and pickup</p>
+                  <p className="mt-1 text-sm">
+                    Both locations are within our free service area.
+                  </p>
+                </div>
+              )}
+
+              {locationsSelected && serviceAreaFee > 0 && (
+                <div
+                  className="mt-5 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950"
+                  aria-live="polite"
+                >
+                  <p className="font-bold">
+                    Service-area fee: ${serviceAreaFee}
+                  </p>
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+                    {deliveryFee > 0 && (
+                      <li>Delivery outside the free zone: $15</li>
+                    )}
+                    {pickupFee > 0 && (
+                      <li>Pickup outside the free zone: $15</li>
+                    )}
+                  </ul>
+                </div>
+              )}
+
+              <p className="mt-4 text-sm text-slate-600">
+                Not seeing your town? Contact us before reserving. We may still
+                be able to serve your location.
+              </p>
+            </section>
+
+            <section className="border-t border-slate-200 pt-8">
+              <div className="mb-5 flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-lime-400 font-black text-slate-950">
+                  4
+                </span>
+                <div>
+                  <h2 className="text-xl font-black">Choose Your Package</h2>
+                  <p className="text-sm text-slate-600">
+                    Every package includes a two-week rental.
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="totePackage"
+                  className="mb-2 block font-semibold"
+                >
+                  Tote Package
+                </label>
+                <select
+                  id="totePackage"
+                  name="totePackage"
+                  value={form.totePackage}
+                  onChange={handleChange}
+                  className={inputClass}
+                >
+                  <option value="20-totes">
+                    20 Totes - $99 | $40/week extension
+                  </option>
+                  <option value="40-totes">
+                    40 Totes - $169 | $70/week extension
+                  </option>
+                  <option value="60-totes">
+                    60 Totes - $219 | $100/week extension
+                  </option>
+                </select>
+                <p className="mt-2 text-sm font-semibold text-lime-700">
+                  Additional rental weeks: ${extensionRate}/week
+                </p>
+              </div>
+
+              <label className="mt-5 flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 transition hover:border-lime-400">
+                <input
+                  type="checkbox"
+                  name="extraDolly"
+                  checked={form.extraDolly}
+                  onChange={handleChange}
+                  className="h-5 w-5 accent-lime-500"
+                />
+                <span>
+                  <span className="font-bold">Add an extra dolly</span>
+                  <span className="ml-2 text-slate-600">$10</span>
+                </span>
+              </label>
+            </section>
+
+            <section className="border-t border-slate-200 pt-8">
+              <div className="mb-5 flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-lime-400 font-black text-slate-950">
+                  5
+                </span>
+                <div>
+                  <h2 className="text-xl font-black">Agreement & Authorization</h2>
+                  <p className="text-sm text-slate-600">
+                    Review and accept both items before submitting.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-4 transition hover:border-lime-400">
+                  <input
+                    type="checkbox"
+                    name="agree"
+                    required
+                    checked={form.agree}
+                    onChange={handleChange}
+                    className={checkboxClass}
+                  />
+                  <span>
+                    I agree to the{" "}
+                    <Link
+                      href="/agreement"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-bold text-lime-700 underline decoration-2 underline-offset-2"
+                    >
+                      rental agreement
+                    </Link>
+                    .
+                  </span>
+                </label>
+
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-4 transition hover:border-lime-400">
+                  <input
+                    type="checkbox"
+                    name="paymentAuthorization"
+                    required
+                    checked={form.paymentAuthorization}
+                    onChange={handleChange}
+                    className={checkboxClass}
+                  />
+                  <span className="font-semibold leading-7">
+                    I authorize QC Tote Rental to securely save my payment
+                    method through Stripe. If I request an extension of my
+                    rental, I authorize QC Tote Rental to charge this payment
+                    method ${extensionRate} for each additional rental week.
+                  </span>
+                </label>
+              </div>
+            </section>
+
+            {submitMessage && (
+              <div
+                className="rounded-xl border border-lime-300 bg-lime-50 p-4 font-medium text-slate-900"
+                role="status"
+              >
+                {submitMessage}
+              </div>
+            )}
+
+            {submitError && (
+              <div
+                className="rounded-xl border border-red-300 bg-red-50 p-4 font-medium text-red-900"
+                role="alert"
+              >
+                {submitError}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full rounded-xl bg-lime-400 px-6 py-4 text-lg font-black text-slate-950 shadow-sm transition hover:bg-lime-300 focus:outline-none focus:ring-4 focus:ring-lime-400/30 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+            >
+              {isSubmitting
+                ? "Submitting Reservation..."
+                : "Submit Reservation Request"}
+            </button>
+
+            <p className="text-center text-sm text-slate-500">
+              Submitting this form requests a reservation. Availability must be
+              confirmed by QC Tote Rental.
+            </p>
+          </form>
+
+          <aside className="lg:sticky lg:top-28">
+            <div className="overflow-hidden rounded-3xl bg-slate-950 text-white shadow-xl">
+              <div className="border-b border-slate-800 p-6">
+                <p className="text-sm font-bold uppercase tracking-[0.18em] text-lime-400">
+                  Reservation Summary
+                </p>
+                <h2 className="mt-2 text-2xl font-black">Estimated Total</h2>
+              </div>
+
+              <div className="space-y-4 p-6">
+                <div className="flex items-start justify-between gap-4">
+                  <span className="text-slate-300">Tote package</span>
+                  <span className="font-bold">${packagePrice}</span>
+                </div>
+
+                {form.extraDolly && (
+                  <div className="flex items-start justify-between gap-4">
+                    <span className="text-slate-300">Extra dolly</span>
+                    <span className="font-bold">$10</span>
+                  </div>
+                )}
+
+                <div className="flex items-start justify-between gap-4">
+                  <span className="text-slate-300">Service-area fee</span>
+                  <span className="text-right font-bold">
+                    {locationsSelected ? `$${serviceAreaFee}` : "Select towns"}
+                  </span>
+                </div>
+
+                <div className="border-t border-slate-700 pt-4">
+                  <div className="flex items-end justify-between gap-4">
+                    <span className="font-bold">Total before tax</span>
+                    <span className="text-3xl font-black text-lime-400">
+                      {locationsSelected ? `$${totalBeforeTax}` : "--"}
+                    </span>
+                  </div>
+                </div>
+
+                <p className="text-sm leading-6 text-slate-400">
+                  Local sales tax will be calculated and added to your invoice.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h3 className="text-lg font-black">What happens next?</h3>
+              <ol className="mt-4 space-y-4 text-sm leading-6 text-slate-600">
+                <li className="flex gap-3">
+                  <span className="font-black text-lime-600">1.</span>
+                  We review your requested dates and package.
+                </li>
+                <li className="flex gap-3">
+                  <span className="font-black text-lime-600">2.</span>
+                  We contact you to confirm availability.
+                </li>
+                <li className="flex gap-3">
+                  <span className="font-black text-lime-600">3.</span>
+                  We provide your invoice and final reservation details.
+                </li>
+              </ol>
+            </div>
+          </aside>
         </div>
-
-        <label className="flex items-center gap-3">
-          <input type="checkbox" name="extraDolly" checked={form.extraDolly} onChange={handleChange} />
-          <span>Extra Dolly ($10)</span>
-        </label>
-
-        <label className="flex items-start gap-3">
-          <input type="checkbox" name="agree" required checked={form.agree} onChange={handleChange} className="mt-1" />
-          <span>
-            I agree to the{" "}
-            <a href="/agreement" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
-              rental agreement
-            </a>
-          </span>
-        </label>
-
-        <label className="flex items-start gap-3">
-          <input type="checkbox" name="paymentAuthorization" required checked={form.paymentAuthorization} onChange={handleChange} className="mt-1" />
-          <span className="font-semibold">
-            I authorize QC Tote Rental to securely save my payment method through Stripe. If I request an extension of my rental, I authorize QC Tote Rental to charge this payment method ${extensionRate} for each additional rental week.
-          </span>
-        </label>
-
-        <div className="space-y-2 rounded-lg bg-gray-100 p-4">
-          <div className="flex items-center justify-between"><span>Tote package</span><span>${packagePrice}</span></div>
-          {form.extraDolly && <div className="flex items-center justify-between"><span>Extra Dolly</span><span>$10</span></div>}
-          <div className="flex items-center justify-between"><span>Service-area fee</span><span>{locationsSelected ? `$${serviceAreaFee}` : "Select towns"}</span></div>
-          <div className="flex items-center justify-between border-t pt-2 text-lg font-bold"><span>Total before tax</span><span>{locationsSelected ? `$${totalBeforeTax}` : "--"}</span></div>
-          <p className="text-sm text-gray-600">Local sales tax will be calculated and added to your invoice.</p>
-        </div>
-
-        {submitMessage && (
-          <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-green-800" role="status">{submitMessage}</div>
-        )}
-
-        {submitError && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800" role="alert">{submitError}</div>
-        )}
-
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full rounded-lg bg-blue-600 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-400"
-        >
-          {isSubmitting ? "Submitting Reservation..." : "Submit Reservation"}
-        </button>
-      </form>
-    </div>
+      </section>
+    </main>
   );
 }

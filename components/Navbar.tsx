@@ -7,38 +7,87 @@ export default function Navbar() {
   const [open, setOpen] = useState(false);
 
   return (
-    <nav className="bg-white shadow-sm sticky top-0 z-50">
-      <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
-        <Link href="/" className="text-2xl font-bold text-blue-600">
-          QC Tote Rental
+    <nav className="sticky top-0 z-50 border-b border-slate-800 bg-slate-950 text-white shadow-lg">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+        <Link
+          href="/"
+          className="text-2xl font-black tracking-tight text-white transition hover:text-lime-400"
+          onClick={() => setOpen(false)}
+        >
+          QC <span className="text-lime-400">Tote Rental</span>
         </Link>
 
-        {/* Mobile Menu Button */}
         <button
-          className="md:hidden text-gray-700"
+          type="button"
+          className="flex h-11 w-11 items-center justify-center rounded-lg border border-slate-700 text-2xl text-white transition hover:border-lime-400 hover:text-lime-400 md:hidden"
           onClick={() => setOpen(!open)}
+          aria-label="Toggle navigation menu"
+          aria-expanded={open}
         >
-          ☰
+          {open ? "×" : "☰"}
         </button>
 
-        {/* Desktop Menu */}
-        <div className="hidden md:flex gap-8 text-gray-700 font-medium">
-          <Link href="/pricing" className="hover:text-blue-600">Pricing</Link>
-          <Link href="/service-area" className="hover:text-blue-600">Service Area</Link>
-          <Link href="/reserve" className="hover:text-blue-600">Reserve</Link>
-          <Link href="/agreement" className="hover:text-blue-600">Agreement</Link>
-          <Link href="/contact" className="hover:text-blue-600">Contact</Link>
+        <div className="hidden items-center gap-7 text-sm font-semibold md:flex">
+          <Link href="/pricing" className="text-slate-200 transition hover:text-lime-400">
+            Pricing
+          </Link>
+          <Link href="/service-area" className="text-slate-200 transition hover:text-lime-400">
+            Service Area
+          </Link>
+          <Link href="/agreement" className="text-slate-200 transition hover:text-lime-400">
+            Agreement
+          </Link>
+          <Link href="/contact" className="text-slate-200 transition hover:text-lime-400">
+            Contact
+          </Link>
+          <Link
+            href="/reserve"
+            className="rounded-lg bg-lime-400 px-5 py-3 font-bold text-slate-950 transition hover:bg-lime-300"
+          >
+            Reserve Totes
+          </Link>
         </div>
       </div>
 
-      {/* Mobile Dropdown */}
       {open && (
-        <div className="md:hidden bg-white border-t px-6 py-4 flex flex-col gap-4 text-gray-700 font-medium">
-          <Link href="/pricing" onClick={() => setOpen(false)}>Pricing</Link>
-          <Link href="/service-area" onClick={()=>setOpen(false)}>Service Area</Link>
-          <Link href="/reserve" onClick={() => setOpen(false)}>Reserve</Link>
-          <Link href="/agreement" onClick={() => setOpen(false)}>Agreement</Link>
-          <Link href="/contact" onClick={() => setOpen(false)}>Contact</Link>
+        <div className="border-t border-slate-800 bg-slate-950 px-6 pb-6 pt-4 md:hidden">
+          <div className="mx-auto flex max-w-6xl flex-col gap-2 font-semibold">
+            <Link
+              href="/pricing"
+              onClick={() => setOpen(false)}
+              className="rounded-lg px-3 py-3 text-slate-200 transition hover:bg-slate-900 hover:text-lime-400"
+            >
+              Pricing
+            </Link>
+            <Link
+              href="/service-area"
+              onClick={() => setOpen(false)}
+              className="rounded-lg px-3 py-3 text-slate-200 transition hover:bg-slate-900 hover:text-lime-400"
+            >
+              Service Area
+            </Link>
+            <Link
+              href="/agreement"
+              onClick={() => setOpen(false)}
+              className="rounded-lg px-3 py-3 text-slate-200 transition hover:bg-slate-900 hover:text-lime-400"
+            >
+              Agreement
+            </Link>
+            <Link
+              href="/contact"
+              onClick={() => setOpen(false)}
+              className="rounded-lg px-3 py-3 text-slate-200 transition hover:bg-slate-900 hover:text-lime-400"
+            >
+              Contact
+            </Link>
+            <Link
+              href="/reserve"
+              onClick={() => setOpen(false)}
+              className="mt-2 rounded-lg bg-lime-400 px-5 py-3 text-center font-bold text-slate-950 transition hover:bg-lime-300"
+            >
+              Reserve Totes
+            </Link>
+          </div>
         </div>
       )}
     </nav>
