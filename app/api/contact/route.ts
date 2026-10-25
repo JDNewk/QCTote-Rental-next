@@ -13,7 +13,7 @@ function escapeHtml(value: unknown) {
 export async function POST(request: Request) {
   try {
     const resendApiKey = process.env.RESEND_API_KEY;
-    const notificationEmail = process.env.RESERVATION_NOTIFICATION_EMAIL;
+    const notificationEmail = process.env.CONTACT_NOTIFICATION_EMAIL;
     const fromEmail = process.env.RESEND_FROM_EMAIL;
 
     if (!resendApiKey || !notificationEmail || !fromEmail) {
