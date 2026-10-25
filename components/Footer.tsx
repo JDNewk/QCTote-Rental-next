@@ -33,6 +33,9 @@ export default function Footer() {
               <a href={siteConfig.phoneHref} className="hover:text-lime-400 transition">
                 📞 {siteConfig.phone}
               </a>
+              <a href="mailto:info@qctoterentals.com" className="hover:text-lime-400 transition">
+                ✉️ info@qctoterentals.com
+              </a>
             </div>
           </div>
         </div>
