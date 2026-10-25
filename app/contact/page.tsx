@@ -6,15 +6,13 @@ import { siteConfig } from "@/config/siteConfig";
 export default function ContactPage() {
   const [form, setForm] = useState({ name: "", email: "", message: "" });
 
-  const handleChange = (e) => {
+ const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
-
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     alert("Message submitted!");
   };
-
   return (
     <div className="mx-auto max-w-5xl px-6 py-12">
       <h1 className="text-3xl font-bold text-center mb-10">

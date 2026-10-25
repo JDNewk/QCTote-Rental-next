@@ -6,7 +6,7 @@ export default function Footer() {
       <div className="mx-auto max-w-6xl px-6 flex flex-col md:flex-row justify-between items-center gap-6 text-gray-700 text-sm">
 
         <p className="text-center md:text-left">
-          © {new Date().getFullYear()} QC Tote Rental — Quad Cities, IL & IA
+          © 2026 QC Tote Rental — Quad Cities, IL & IA
         </p>
 
         <div className="flex flex-col md:flex-row items-center gap-3 md:gap-6 text-gray-700 font-medium">
@@ -22,4 +22,3 @@ export default function Footer() {
     </footer>
   );
 }
-
