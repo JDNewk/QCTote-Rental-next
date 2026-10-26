@@ -1,9 +1,9 @@
-import "./globals.css";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import type { Metadata } from "next";
 
-export const metadata = {
-  metadataBase: new URL("https://qctoterentals.com"),
+export const siteUrl = "https://qctoterentals.com";
+
+export const siteMetadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
     default: "Moving Boxes & Moving Tote Rental | Quad Cities & Surrounding Areas",
     template: "%s | QC Tote Rental",
@@ -15,17 +15,17 @@ export const metadata = {
     title: "Moving Boxes & Moving Tote Rental | Quad Cities & Surrounding Areas",
     description:
       "Moving box and reusable tote rental delivered throughout the Quad Cities and surrounding communities in Illinois and Iowa.",
-    url: "https://qctoterentals.com",
+    url: siteUrl,
     siteName: "QC Tote Rental",
     type: "website",
   },
 };
 
-const structuredData = {
+export const structuredData = {
   "@context": "https://schema.org",
   "@type": "LocalBusiness",
   name: "QC Tote Rental",
-  url: "https://qctoterentals.com",
+  url: siteUrl,
   telephone: "+1-309-489-3025",
   description:
     "Moving box and reusable plastic moving tote rental serving the Quad Cities and surrounding communities in Illinois and Iowa.",
@@ -37,15 +37,7 @@ const structuredData = {
   ],
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en">
-      <body className="min-h-screen flex flex-col bg-gray-50 text-gray-900">
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
-        <Navbar />
-        <main className="flex-1">{children}</main>
-        <Footer />
-      </body>
-    </html>
-  );
+// Escapes "<" so JSON can't close the surrounding <script> tag.
+export function serializeJsonLd(data: unknown) {
+  return JSON.stringify(data).replace(/</g, "\\u003c");
 }

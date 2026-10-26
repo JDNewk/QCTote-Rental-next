@@ -37,6 +37,9 @@ export default function Navbar() {
           <Link href="/agreement" className="text-slate-200 transition hover:text-lime-400">
             Agreement
           </Link>
+          <Link href="/blog" className="text-slate-200 transition hover:text-lime-400">
+            Blog
+          </Link>
           <Link href="/contact" className="text-slate-200 transition hover:text-lime-400">
             Contact
           </Link>
@@ -72,6 +75,13 @@ export default function Navbar() {
               className="rounded-lg px-3 py-3 text-slate-200 transition hover:bg-slate-900 hover:text-lime-400"
             >
               Agreement
+            </Link>
+            <Link
+              href="/blog"
+              onClick={() => setOpen(false)}
+              className="rounded-lg px-3 py-3 text-slate-200 transition hover:bg-slate-900 hover:text-lime-400"
+            >
+              Blog
             </Link>
             <Link
               href="/contact"

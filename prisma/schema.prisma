@@ -1,0 +1,34 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Articles received from GrandRanker via /api/articles-webhook.
+model Article {
+  externalId      String    @id @map("external_id")
+  title           String?
+  slug            String?   @unique
+  contentHtml     String?   @map("content_html")
+  contentMarkdown String?   @map("content_markdown")
+  metaTitle       String?   @map("meta_title")
+  metaDescription String?   @map("meta_description")
+  subtitle        String?
+  category        String?
+  authorName      String?   @map("author_name")
+  imageUrl        String?   @map("image_url")
+  readTime        String?   @map("read_time")
+  wordCount       Int?      @map("word_count")
+  tags            Json?
+  faqs            Json?
+  jsonLdSchema    Json?     @map("json_ld_schema")
+  languageCode    String?   @map("language_code")
+  publishedAt     DateTime? @map("published_at")
+  updatedAt       DateTime  @default(now()) @map("updated_at")
+
+  @@index([publishedAt])
+  @@map("articles")
+}
