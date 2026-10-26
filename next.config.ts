@@ -4,6 +4,10 @@ const nextConfig: NextConfig = {
   /* config options here */
   cacheComponents: true,
   partialPrefetching: true,
+  experimental: {
+    // Site and article pages use separate root layouts, so unmatched URLs need a global 404 page.
+    globalNotFound: true,
+  },
   turbopack: {
     rules: {
       "*.css": {
