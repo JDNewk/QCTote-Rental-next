@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { formatArticleDate, getArticleList } from "@/lib/articles";
 
+type BlogArticle = Awaited<ReturnType<typeof getArticleList>>[number];
+
 export const metadata = {
   title: "Moving Tips & Tote Rental Blog",
   description: "Moving tips, packing guides and local news from QC Tote Rental, serving the Quad Cities and surrounding areas.",
@@ -28,7 +30,7 @@ export default async function BlogPage() {
           <p className="text-center text-lg text-slate-600">New articles are coming soon. Check back shortly.</p>
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {articles.map((article) => (
+            {articles.map((article: BlogArticle) => (
               <article key={article.slug} className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:border-lime-400">
                 {article.imageUrl && (
                   // eslint-disable-next-line @next/next/no-img-element

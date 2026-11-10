@@ -24,8 +24,10 @@ export const siteMetadata: Metadata = {
 export const structuredData = {
   "@context": "https://schema.org",
   "@type": "LocalBusiness",
+  "@id": `${siteUrl}/#business`,
   name: "QC Tote Rental",
   url: siteUrl,
+  image: `${siteUrl}/qc-tote-product.png`,
   telephone: "+1-309-489-3025",
   description:
     "Moving box and reusable plastic moving tote rental serving the Quad Cities and surrounding communities in Illinois and Iowa.",

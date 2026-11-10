@@ -2,6 +2,8 @@ import type { MetadataRoute } from "next";
 import { serviceAreas } from "@/config/serviceAreas";
 import { getSitemapArticles } from "@/lib/articles";
 
+type SitemapArticle = Awaited<ReturnType<typeof getSitemapArticles>>[number];
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = "https://qctoterentals.com";
 
@@ -23,19 +25,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   const articles = await getSitemapArticles();
-
-  const articlePages: MetadataRoute.Sitemap = articles.flatMap((article) =>
-    article.slug
-      ? [
-          {
-            url: `${baseUrl}/blog/${encodeURIComponent(article.slug)}`,
-            lastModified: article.updatedAt,
-            changeFrequency: "monthly" as const,
-            priority: 0.7,
-          },
-        ]
-      : [],
-  );
+  const articlePages: MetadataRoute.Sitemap = articles.map((article: SitemapArticle) => ({
+    url: `${baseUrl}/blog/${encodeURIComponent(article.slug!)}`,
+    lastModified: article.updatedAt,
+    changeFrequency: "monthly",
+    priority: 0.7,
+  }));
 
   return [...corePages, ...cityPages, ...articlePages];
 }
