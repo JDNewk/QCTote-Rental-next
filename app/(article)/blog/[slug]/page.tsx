@@ -38,8 +38,43 @@ export default async function ArticlePage({ params }: PageProps<"/blog/[slug]">)
   const article = await getArticleBySlug(slug);
   if (!article) notFound();
 
+  const articleUrl = `${siteUrl}/blog/${encodeURIComponent(slug)}`;
+
+  const articleJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: article.title,
+    description: article.metaDescription || article.subtitle || undefined,
+    url: articleUrl,
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": articleUrl,
+    },
+    image: article.imageUrl ? [article.imageUrl] : undefined,
+    datePublished: article.publishedAt?.toISOString(),
+    dateModified: article.updatedAt.toISOString(),
+    author: article.authorName
+      ? {
+          "@type": "Person",
+          name: article.authorName,
+        }
+      : undefined,
+    publisher: {
+      "@type": "Organization",
+      name: "QC Tote Rental",
+      url: siteUrl,
+    },
+  };
+
   return (
     <div className="bg-slate-50">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(articleJsonLd).replace(/</g, "\\u003c"),
+        }}
+      />
+
       <article className="mx-auto max-w-3xl px-6 py-12">
         <Link href="/blog" className="font-bold text-slate-700 hover:text-lime-600">← All articles</Link>
 
