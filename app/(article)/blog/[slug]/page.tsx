@@ -6,7 +6,11 @@ import { formatArticleDate, getArticleBySlug } from "@/lib/articles";
 
 export const instant = false;
 
-export async function generateMetadata({ params }: PageProps<"/blog/[slug]">): Promise<Metadata> {
+type BlogArticlePageProps = {
+  params: Promise<{ slug: string }>;
+};
+
+export async function generateMetadata({ params }: BlogArticlePageProps): Promise<Metadata> {
   const { slug } = await params;
   const article = await getArticleBySlug(slug);
   if (!article) return { title: "Article Not Found" };
@@ -33,50 +37,17 @@ export async function generateMetadata({ params }: PageProps<"/blog/[slug]">): P
   };
 }
 
-export default async function ArticlePage({ params }: PageProps<"/blog/[slug]">) {
+export default async function ArticlePage({ params }: BlogArticlePageProps) {
   const { slug } = await params;
   const article = await getArticleBySlug(slug);
   if (!article) notFound();
 
-  const articleUrl = `${siteUrl}/blog/${encodeURIComponent(slug)}`;
-
-  const articleJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    headline: article.title,
-    description: article.metaDescription || article.subtitle || undefined,
-    url: articleUrl,
-    mainEntityOfPage: {
-      "@type": "WebPage",
-      "@id": articleUrl,
-    },
-    image: article.imageUrl ? [article.imageUrl] : undefined,
-    datePublished: article.publishedAt?.toISOString(),
-    dateModified: article.updatedAt.toISOString(),
-    author: article.authorName
-      ? {
-          "@type": "Person",
-          name: article.authorName,
-        }
-      : undefined,
-    publisher: {
-      "@type": "Organization",
-      name: "QC Tote Rental",
-      url: siteUrl,
-    },
-  };
-
   return (
     <div className="bg-slate-50">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(articleJsonLd).replace(/</g, "\\u003c"),
-        }}
-      />
-
       <article className="mx-auto max-w-3xl px-6 py-12">
-        <Link href="/blog" className="font-bold text-slate-700 hover:text-lime-600">← All articles</Link>
+        <Link href="/blog" className="font-bold text-slate-700 hover:text-lime-600">
+          ← All articles
+        </Link>
 
         <header className="mt-8">
           {article.category && (
@@ -108,7 +79,9 @@ export default async function ArticlePage({ params }: PageProps<"/blog/[slug]">)
         <div className="mx-auto max-w-3xl px-6">
           <h2 className="text-3xl font-black">Ready to Skip the Cardboard?</h2>
           <p className="mt-3 text-lg">Reusable moving totes delivered to your door and picked up when you&apos;re done.</p>
-          <Link href="/reserve" className="mt-7 inline-block rounded-lg bg-slate-950 px-7 py-3 font-bold text-white">Reserve Your Totes</Link>
+          <Link href="/reserve" className="mt-7 inline-block rounded-lg bg-slate-950 px-7 py-3 font-bold text-white">
+            Reserve Your Totes
+          </Link>
         </div>
       </section>
     </div>
