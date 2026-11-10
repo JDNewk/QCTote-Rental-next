@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { requireAdmin } from "@/lib/adminAuth";
 import { getPrisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/adminAuth";
 
 type AdminArticle = Awaited<
   ReturnType<ReturnType<typeof getPrisma>["article"]["findMany"]>
@@ -30,7 +30,7 @@ export default async function AdminPage() {
             <Link href="/blog" className="rounded-lg border border-slate-300 bg-white px-5 py-3 font-bold text-slate-800 hover:border-lime-500">
               View Blog
             </Link>
-            <Link href="/admin/article/new" className="rounded-lg bg-slate-950 px-5 py-3 font-bold text-white hover:bg-lime-500 hover:text-slate-950">
+            <Link href="/admin/articles/new" className="rounded-lg bg-slate-950 px-5 py-3 font-bold text-white hover:bg-lime-500 hover:text-slate-950">
               New Article
             </Link>
           </div>
@@ -73,7 +73,7 @@ export default async function AdminPage() {
                           View
                         </Link>
                       ) : null}
-                      <Link href={`/admin/article/${encodeURIComponent(article.externalId)}`} className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-bold text-white hover:bg-lime-500 hover:text-slate-950">
+                      <Link href={`/admin/articles/${encodeURIComponent(article.externalId)}`} className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-bold text-white hover:bg-lime-500 hover:text-slate-950">
                         Edit
                       </Link>
                     </div>
