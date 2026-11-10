@@ -30,7 +30,10 @@ export const getArticleBySlug = cache(async (slug: string) => {
 export async function getSitemapArticles() {
   await connection();
   return getPrisma().article.findMany({
-    where: { slug: { not: null } },
+    where: {
+      slug: { not: null },
+      publishedAt: { not: null },
+    },
     orderBy: { updatedAt: "desc" },
     select: { slug: true, updatedAt: true },
   });
