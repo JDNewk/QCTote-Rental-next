@@ -84,14 +84,11 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
   function command(name: string, value?: string) {
     editorRef.current?.focus();
     document.execCommand(name, false, value);
-    update("contentHtml", editorRef.current?.innerHTML ?? "");
   }
 
   function openPreview() {
-    setForm((current) => ({
-      ...current,
-      contentHtml: editorRef.current?.innerHTML ?? current.contentHtml,
-    }));
+    const contentHtml = editorRef.current?.innerHTML ?? form.contentHtml;
+    setForm((current) => ({ ...current, contentHtml }));
     setPreview(true);
   }
 
@@ -262,7 +259,6 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
                 className="article-content min-h-96 rounded-b-lg border border-slate-300 bg-white p-5 text-left text-slate-950 [direction:ltr] [unicode-bidi:isolate]"
                 style={{ direction: "ltr", textAlign: "left", unicodeBidi: "isolate" }}
                 dangerouslySetInnerHTML={{ __html: form.contentHtml }}
-                onInput={(event) => update("contentHtml", event.currentTarget.innerHTML)}
               />
             </div>
           </div>
