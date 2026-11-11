@@ -158,147 +158,111 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
   const label = "block text-sm font-bold text-slate-700";
 
   return (
-    <main className="min-h-screen bg-slate-100 px-6 py-10">
+    <main className="min-h-screen bg-slate-100 px-6 py-10 text-slate-950">
       <div className="mx-auto max-w-5xl">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <Link href="/admin" className="font-bold text-slate-600 hover:text-lime-600">← All articles</Link>
-            <h1 className="mt-3 text-4xl font-black text-slate-950">{isEdit ? "Edit article" : "New article"}</h1>
-          </div>
+        <Link href="/admin" className="font-bold text-slate-700 hover:text-lime-600">← All articles</Link>
+        <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-4xl font-black">{isEdit ? "Edit article" : "New article"}</h1>
           <div className="flex flex-wrap gap-3">
             <button type="button" onClick={() => (preview ? setPreview(false) : openPreview())} className="rounded-lg border border-slate-300 bg-white px-5 py-3 font-bold">
               {preview ? "Edit" : "Preview"}
             </button>
-            <button type="button" disabled={busy} onClick={() => save("draft")} className="rounded-lg border border-slate-950 px-5 py-3 font-bold disabled:opacity-50">
-              Save draft
-            </button>
-            <button type="button" disabled={busy} onClick={() => save("publish")} className="rounded-lg bg-lime-400 px-5 py-3 font-black disabled:opacity-50">
-              Publish / schedule
-            </button>
+            <button type="button" disabled={busy} onClick={() => save("draft")} className="rounded-lg border border-slate-950 px-5 py-3 font-bold disabled:opacity-50">Save draft</button>
+            <button type="button" disabled={busy} onClick={() => save("publish")} className="rounded-lg bg-lime-400 px-5 py-3 font-black disabled:opacity-50">Publish / schedule</button>
             {isEdit && isPublished ? (
-              <button type="button" disabled={busy} onClick={unpublish} className="rounded-lg bg-amber-400 px-5 py-3 font-bold text-slate-950 disabled:opacity-50">
-                Unpublish
-              </button>
+              <button type="button" disabled={busy} onClick={unpublish} className="rounded-lg bg-amber-100 px-5 py-3 font-bold text-amber-900 disabled:opacity-50">Unpublish</button>
             ) : null}
             {isEdit ? (
-              <button type="button" disabled={busy} onClick={remove} className="rounded-lg bg-red-600 px-5 py-3 font-bold text-white disabled:opacity-50">
-                Delete permanently
-              </button>
+              <button type="button" disabled={busy} onClick={remove} className="rounded-lg bg-red-700 px-5 py-3 font-bold text-white disabled:opacity-50">Delete permanently</button>
             ) : null}
           </div>
         </div>
 
-        {message ? <p className="mt-6 rounded-lg bg-white p-4 font-semibold text-slate-700 shadow-sm">{message}</p> : null}
+        {message ? <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4 font-semibold">{message}</div> : null}
 
         {preview ? (
           <article className="mt-8 rounded-2xl bg-white p-8 shadow-sm">
-            {form.imageUrl ? <img src={form.imageUrl} alt={form.title || "Featured image"} className="mb-8 w-full rounded-2xl object-cover" /> : null}
-            <p className="text-sm font-bold uppercase tracking-widest text-lime-600">{form.category}</p>
-            <h1 className="mt-3 text-4xl font-black text-slate-950">{form.title || "Untitled article"}</h1>
-            {form.subtitle ? <p className="mt-4 text-xl leading-8 text-slate-600">{form.subtitle}</p> : null}
+            {form.imageUrl ? <img src={form.imageUrl} alt="" className="mb-8 w-full rounded-2xl object-cover" /> : null}
+            <h1 className="text-4xl font-black">{form.title || "Untitled article"}</h1>
+            {form.subtitle ? <p className="mt-4 text-xl text-slate-600">{form.subtitle}</p> : null}
             <div className="article-content mt-8" dangerouslySetInnerHTML={{ __html: form.contentHtml }} />
           </article>
         ) : (
-          <div className="mt-8 space-y-6 rounded-2xl bg-white p-6 shadow-sm sm:p-8">
-            <div>
-              <label className={label}>Title</label>
-              <input className={input} value={form.title} onChange={(event) => updateTitle(event.target.value)} />
-            </div>
+          <div className="mt-8 space-y-7 rounded-2xl bg-white p-8 shadow-sm">
+            <label className={label}>Title
+              <input value={form.title} onChange={(e) => updateTitle(e.target.value)} className={input} />
+            </label>
 
-            <div>
-              <label className={label}>Slug</label>
-              <div className="flex gap-3">
+            <label className={label}>Slug
+              <div className="mt-2 flex gap-3">
                 <input
-                  className={input}
                   value={form.slug}
-                  onChange={(event) => {
-                    update("slug", slugify(event.target.value));
-                    setSlugManuallyEdited(true);
-                  }}
+                  onChange={(e) => { update("slug", e.target.value); setSlugManuallyEdited(true); }}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-950"
                 />
-                <button type="button" onClick={makeSlug} className="mt-2 shrink-0 rounded-lg border border-slate-300 px-4 font-bold">Create from title</button>
+                <button type="button" onClick={makeSlug} className="shrink-0 rounded-lg border border-slate-300 bg-white px-4 py-2 font-bold">Create from title</button>
               </div>
-              <p className="mt-2 text-sm text-slate-500">Public URL: /blog/{form.slug || "your-article-slug"}</p>
+            </label>
+
+            <label className={label}>Subtitle
+              <input value={form.subtitle} onChange={(e) => update("subtitle", e.target.value)} className={input} />
+            </label>
+
+            <div className="grid gap-6 sm:grid-cols-2">
+              <label className={label}>Category
+                <input value={form.category} onChange={(e) => update("category", e.target.value)} className={input} />
+              </label>
+              <label className={label}>Author
+                <input value={form.authorName} onChange={(e) => update("authorName", e.target.value)} className={input} />
+              </label>
             </div>
 
             <div>
-              <label className={label}>Subtitle</label>
-              <textarea className={input} rows={2} value={form.subtitle} onChange={(event) => update("subtitle", event.target.value)} />
-            </div>
-
-            <div className="grid gap-6 md:grid-cols-2">
-              <div>
-                <label className={label}>Category</label>
-                <input className={input} value={form.category} onChange={(event) => update("category", event.target.value)} />
-              </div>
-              <div>
-                <label className={label}>Author</label>
-                <input className={input} value={form.authorName} onChange={(event) => update("authorName", event.target.value)} />
-              </div>
-            </div>
-
-            <div>
-              <label className={label}>Featured image</label>
-              <p className="mt-1 text-sm text-slate-500">Upload a JPG, PNG, WebP, or GIF. The uploaded image URL is saved with the article.</p>
-              <div className="mt-3">
-                <FeaturedImageUpload
-                  value={form.imageUrl}
-                  onChange={(url: string) => update("imageUrl", url)}
-                />
+              <p className={label}>Featured image</p>
+              <div className="mt-2">
+                <FeaturedImageUpload value={form.imageUrl} onChange={(url) => update("imageUrl", url)} />
               </div>
               <details className="mt-4">
                 <summary className="cursor-pointer text-sm font-bold text-slate-600">Advanced: use an existing image URL</summary>
-                <input className={input} value={form.imageUrl} onChange={(event) => update("imageUrl", event.target.value)} placeholder="https://..." />
+                <input value={form.imageUrl} onChange={(e) => update("imageUrl", e.target.value)} className={input} placeholder="https://..." />
               </details>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
-              <div>
-                <label className={label}>Read time</label>
-                <input className={input} value={form.readTime} onChange={(event) => update("readTime", event.target.value)} placeholder="5 min read" />
-              </div>
-              <div>
-                <label className={label}>Publication date / schedule</label>
-                <input type="datetime-local" className={input} value={form.publishedAt} onChange={(event) => update("publishedAt", event.target.value)} />
-              </div>
+            <div className="grid gap-6 sm:grid-cols-2">
+              <label className={label}>Read time
+                <input value={form.readTime} onChange={(e) => update("readTime", e.target.value)} className={input} placeholder="6 min read" />
+              </label>
+              <label className={label}>Publication date
+                <input type="datetime-local" value={form.publishedAt} onChange={(e) => update("publishedAt", e.target.value)} className={input} />
+              </label>
             </div>
 
-            <div>
-              <label className={label}>SEO title</label>
-              <input className={input} value={form.metaTitle} onChange={(event) => update("metaTitle", event.target.value)} />
-            </div>
+            <label className={label}>SEO title
+              <input value={form.metaTitle} onChange={(e) => update("metaTitle", e.target.value)} className={input} />
+            </label>
+
+            <label className={label}>Meta description
+              <textarea value={form.metaDescription} onChange={(e) => update("metaDescription", e.target.value)} className={`${input} min-h-28`} />
+              <span className="mt-1 block text-xs font-normal text-slate-500">{seoLength} characters</span>
+            </label>
 
             <div>
-              <label className={label}>Meta description</label>
-              <textarea className={input} rows={3} value={form.metaDescription} onChange={(event) => update("metaDescription", event.target.value)} />
-              <p className="mt-1 text-sm text-slate-500">{seoLength} characters</p>
-            </div>
-
-            <div>
-              <label className={label}>Article content</label>
-              <div className="mt-2 flex flex-wrap gap-2 rounded-t-lg border border-b-0 border-slate-300 bg-slate-50 p-2">
+              <p className={label}>Article content</p>
+              <div className="mt-2 flex flex-wrap gap-2 rounded-t-lg border border-b-0 border-slate-300 bg-slate-50 p-3">
                 <button type="button" onClick={() => command("formatBlock", "h2")} className="rounded border bg-white px-3 py-1 font-bold">H2</button>
                 <button type="button" onClick={() => command("formatBlock", "h3")} className="rounded border bg-white px-3 py-1 font-bold">H3</button>
                 <button type="button" onClick={() => command("bold")} className="rounded border bg-white px-3 py-1 font-bold">Bold</button>
                 <button type="button" onClick={() => command("insertUnorderedList")} className="rounded border bg-white px-3 py-1 font-bold">List</button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const url = window.prompt("Link URL");
-                    if (url) command("createLink", url);
-                  }}
-                  className="rounded border bg-white px-3 py-1 font-bold"
-                >
-                  Link
-                </button>
               </div>
               <div
                 ref={editorRef}
                 contentEditable
+                dir="ltr"
                 suppressContentEditableWarning
+                className="article-content min-h-96 rounded-b-lg border border-slate-300 bg-white p-5 text-left text-slate-950 [direction:ltr] [unicode-bidi:isolate]"
+                style={{ direction: "ltr", textAlign: "left", unicodeBidi: "isolate" }}
                 dangerouslySetInnerHTML={{ __html: form.contentHtml }}
                 onInput={(event) => update("contentHtml", event.currentTarget.innerHTML)}
-                className="article-content min-h-96 rounded-b-lg border border-slate-300 bg-white p-5 outline-none focus:border-lime-500"
               />
             </div>
           </div>
