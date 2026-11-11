@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import {
@@ -26,6 +26,8 @@ type ArticleForm = {
   publishedAt: string;
 };
 
+type SaveMode = "draft" | "publishNow" | "schedule";
+
 const empty: ArticleForm = {
   title: "",
   slug: "",
@@ -52,6 +54,15 @@ function localDateTime(iso: string) {
   const date = new Date(iso);
   const offset = date.getTimezoneOffset() * 60000;
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
+
+function formatCentralDateTime(iso: string) {
+  if (!iso) return "";
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "America/Chicago",
+  }).format(new Date(iso));
 }
 
 function slugify(value: string) {
@@ -206,18 +217,25 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
   const editorRef = useRef<HTMLDivElement>(null);
   const bodyImageInputRef = useRef<HTMLInputElement>(null);
   const savedRangeRef = useRef<Range | null>(null);
+  const initialPublishedAt = initialArticle?.publishedAt ?? "";
+  const initialIsScheduled = Boolean(initialPublishedAt && new Date(initialPublishedAt) > new Date());
+
   const [form, setForm] = useState<ArticleForm>(() => ({
     ...empty,
     ...initialArticle,
-    publishedAt: localDateTime(initialArticle?.publishedAt ?? ""),
+    publishedAt: localDateTime(initialPublishedAt),
   }));
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [preview, setPreview] = useState(false);
   const [pasting, setPasting] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(initialIsScheduled);
+  const [scheduledFor, setScheduledFor] = useState(localDateTime(initialPublishedAt));
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(Boolean(initialArticle?.slug));
+
   const isEdit = Boolean(initialArticle?.externalId);
-  const isPublished = Boolean(initialArticle?.publishedAt && new Date(initialArticle.publishedAt) <= new Date());
+  const isPublished = Boolean(initialPublishedAt && new Date(initialPublishedAt) <= new Date());
+  const isScheduled = Boolean(initialPublishedAt && new Date(initialPublishedAt) > new Date());
 
   function update<K extends keyof ArticleForm>(key: K, value: ArticleForm[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -335,7 +353,7 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
       : savedRangeRef.current?.cloneRange() ?? null;
 
     setPasting(true);
-    setMessage(clipboardImages.length ? "Uploading pasted imagesâ€¦" : "Cleaning Word formattingâ€¦");
+    setMessage(clipboardImages.length ? "Uploading pasted images..." : "Cleaning Word formatting...");
 
     try {
       const source = new DOMParser().parseFromString(html || plainTextToHtml(plainText), "text/html");
@@ -394,22 +412,40 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
     setPreview(true);
   }
 
-  async function save(mode: "draft" | "publish") {
+  async function save(mode: SaveMode) {
+    if (mode === "schedule") {
+      if (!scheduledFor) {
+        setMessage("Choose a future publication date and time.");
+        return;
+      }
+      const scheduledDate = new Date(scheduledFor);
+      if (Number.isNaN(scheduledDate.getTime()) || scheduledDate <= new Date()) {
+        setMessage("The scheduled publication time must be in the future.");
+        return;
+      }
+    }
+
     setBusy(true);
     setMessage("");
+
+    const contentHtml = editorRef.current?.innerHTML ?? form.contentHtml;
+    const publishedAt =
+      mode === "draft"
+        ? null
+        : mode === "publishNow"
+          ? new Date().toISOString()
+          : new Date(scheduledFor).toISOString();
+
     const payload = {
       ...form,
-      publishedAt:
-        mode === "draft"
-          ? null
-          : form.publishedAt
-            ? new Date(form.publishedAt).toISOString()
-            : new Date().toISOString(),
-      contentHtml: editorRef.current?.innerHTML ?? form.contentHtml,
+      publishedAt,
+      contentHtml,
     };
+
     const url = isEdit
       ? `/api/admin/articles/${encodeURIComponent(initialArticle!.externalId!)}`
       : "/api/admin/articles";
+
     const response = await fetch(url, {
       method: isEdit ? "PUT" : "POST",
       headers: { "content-type": "application/json" },
@@ -417,11 +453,22 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
     });
     const result = await response.json().catch(() => ({}));
     setBusy(false);
+
     if (!response.ok) {
       setMessage(result.error || "The article could not be saved.");
       return;
     }
-    setMessage(mode === "draft" ? "Article unpublished and saved as a draft." : "Article saved for publication.");
+
+    if (mode === "draft") {
+      setMessage("Article unpublished and saved as a draft.");
+    } else if (mode === "publishNow") {
+      setMessage("Article published.");
+      setScheduleOpen(false);
+    } else {
+      setMessage(`Article scheduled for ${formatCentralDateTime(publishedAt!)} Central Time.`);
+      setScheduleOpen(false);
+    }
+
     if (!isEdit && result.externalId) {
       router.replace(`/admin/articles/${encodeURIComponent(result.externalId)}`);
     }
@@ -436,7 +483,7 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
 
   async function remove() {
     if (!isEdit) return;
-    if (!window.confirm(`Delete â€œ${form.title || "this article"}â€ permanently? This cannot be undone.`)) return;
+    if (!window.confirm(`Delete "${form.title || "this article"}" permanently? This cannot be undone.`)) return;
     setBusy(true);
     setMessage("");
     const response = await fetch(
@@ -459,23 +506,89 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
   return (
     <main className="min-h-screen bg-slate-100 px-6 py-10 text-slate-950">
       <div className="mx-auto max-w-5xl">
-        <Link href="/admin" className="font-bold text-slate-700 hover:text-lime-600">back to all articles</Link>
+        <Link href="/admin" className="font-bold text-slate-700 hover:text-lime-600">Back to all articles</Link>
+
         <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-4xl font-black">{isEdit ? "Edit article" : "New article"}</h1>
+          <div>
+            <h1 className="text-4xl font-black">{isEdit ? "Edit article" : "New article"}</h1>
+            {isScheduled ? (
+              <p className="mt-2 font-semibold text-blue-700">
+                Scheduled for {formatCentralDateTime(initialPublishedAt)} Central Time
+              </p>
+            ) : isPublished ? (
+              <p className="mt-2 font-semibold text-lime-700">
+                Published {formatCentralDateTime(initialPublishedAt)} Central Time
+              </p>
+            ) : (
+              <p className="mt-2 font-semibold text-slate-500">Draft</p>
+            )}
+          </div>
+
           <div className="flex flex-wrap gap-3">
             <button type="button" onClick={() => (preview ? setPreview(false) : openPreview())} className="rounded-lg border border-slate-300 bg-white px-5 py-3 font-bold">
               {preview ? "Edit" : "Preview"}
             </button>
-            <button type="button" disabled={busy || pasting} onClick={() => save("draft")} className="rounded-lg border border-slate-950 px-5 py-3 font-bold disabled:opacity-50">Save draft</button>
-            <button type="button" disabled={busy || pasting} onClick={() => save("publish")} className="rounded-lg bg-lime-400 px-5 py-3 font-black disabled:opacity-50">Publish / schedule</button>
-            {isEdit && isPublished ? (
-              <button type="button" disabled={busy || pasting} onClick={unpublish} className="rounded-lg bg-amber-100 px-5 py-3 font-bold text-amber-900 disabled:opacity-50">Unpublish</button>
+            <button type="button" disabled={busy || pasting} onClick={() => save("draft")} className="rounded-lg border border-slate-950 px-5 py-3 font-bold disabled:opacity-50">
+              Save draft
+            </button>
+            <button type="button" disabled={busy || pasting} onClick={() => save("publishNow")} className="rounded-lg bg-lime-400 px-5 py-3 font-black disabled:opacity-50">
+              Publish now
+            </button>
+            <button
+              type="button"
+              disabled={busy || pasting}
+              onClick={() => setScheduleOpen((current) => !current)}
+              className="rounded-lg bg-blue-700 px-5 py-3 font-bold text-white disabled:opacity-50"
+            >
+              {isScheduled ? "Reschedule..." : "Schedule..."}
+            </button>
+            {isEdit && (isPublished || isScheduled) ? (
+              <button type="button" disabled={busy || pasting} onClick={unpublish} className="rounded-lg bg-amber-100 px-5 py-3 font-bold text-amber-900 disabled:opacity-50">
+                {isScheduled ? "Cancel schedule" : "Unpublish"}
+              </button>
             ) : null}
             {isEdit ? (
-              <button type="button" disabled={busy || pasting} onClick={remove} className="rounded-lg bg-red-700 px-5 py-3 font-bold text-white disabled:opacity-50">Delete permanently</button>
+              <button type="button" disabled={busy || pasting} onClick={remove} className="rounded-lg bg-red-700 px-5 py-3 font-bold text-white disabled:opacity-50">
+                Delete permanently
+              </button>
             ) : null}
           </div>
         </div>
+
+        {scheduleOpen ? (
+          <section className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-6">
+            <h2 className="text-xl font-black text-slate-950">Schedule publication</h2>
+            <p className="mt-2 text-sm text-slate-600">Choose the publication date and time in Central Time.</p>
+            <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-end">
+              <label className="block flex-1 text-sm font-bold text-slate-700">
+                Publication date and time
+                <input
+                  type="datetime-local"
+                  value={scheduledFor}
+                  onChange={(event) => setScheduledFor(event.target.value)}
+                  className={input}
+                />
+              </label>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setScheduleOpen(false)}
+                  className="rounded-lg border border-slate-300 bg-white px-5 py-3 font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={busy || pasting || !scheduledFor}
+                  onClick={() => save("schedule")}
+                  className="rounded-lg bg-blue-700 px-5 py-3 font-bold text-white disabled:opacity-50"
+                >
+                  Schedule article
+                </button>
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         {message ? <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4 font-semibold">{message}</div> : null}
 
@@ -527,14 +640,9 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
               </details>
             </div>
 
-            <div className="grid gap-6 sm:grid-cols-2">
-              <label className={label}>Read time
-                <input value={form.readTime} onChange={(event) => update("readTime", event.target.value)} className={input} placeholder="6 min read" />
-              </label>
-              <label className={label}>Publication date
-                <input type="datetime-local" value={form.publishedAt} onChange={(event) => update("publishedAt", event.target.value)} className={input} />
-              </label>
-            </div>
+            <label className={label}>Read time
+              <input value={form.readTime} onChange={(event) => update("readTime", event.target.value)} className={input} placeholder="6 min read" />
+            </label>
 
             <label className={label}>SEO title
               <input value={form.metaTitle} onChange={(event) => update("metaTitle", event.target.value)} className={input} />
@@ -571,7 +679,7 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
                   className="hidden"
                   onChange={handleBodyImageChange}
                 />
-                {pasting ? <span className="px-2 py-1 text-sm font-bold text-lime-700">Processing Word pasteâ€¦</span> : null}
+                {pasting ? <span className="px-2 py-1 text-sm font-bold text-lime-700">Processing Word paste...</span> : null}
               </div>
               <div
                 ref={editorRef}
@@ -593,4 +701,3 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
     </main>
   );
 }
-
