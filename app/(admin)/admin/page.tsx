@@ -8,6 +8,18 @@ type AdminArticle = Awaited<
 
 export const instant = false;
 
+function formatAdminDate(date: Date) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "America/Chicago",
+    timeZoneName: "short",
+  }).format(date);
+}
+
 export default async function AdminPage() {
   await requireAdmin();
 
@@ -46,6 +58,11 @@ export default async function AdminPage() {
                 const isPublished = Boolean(article.publishedAt && article.publishedAt <= now);
                 const isScheduled = Boolean(article.publishedAt && article.publishedAt > now);
                 const status = isPublished ? "Published" : isScheduled ? "Scheduled" : "Draft";
+                const statusDetail = isPublished && article.publishedAt
+                  ? `Published ${formatAdminDate(article.publishedAt)}`
+                  : isScheduled && article.publishedAt
+                    ? `Scheduled for ${formatAdminDate(article.publishedAt)}`
+                    : "Not publicly visible";
 
                 return (
                   <div key={article.externalId} className="flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
@@ -64,7 +81,8 @@ export default async function AdminPage() {
                           {status}
                         </span>
                       </div>
-                      <p className="mt-2 text-sm text-slate-500">/{article.slug || "no-slug"}</p>
+                      <p className="mt-2 text-sm font-semibold text-slate-600">{statusDetail}</p>
+                      <p className="mt-1 text-sm text-slate-500">/{article.slug || "no-slug"}</p>
                     </div>
 
                     <div className="flex flex-wrap gap-3">
@@ -74,7 +92,7 @@ export default async function AdminPage() {
                         </Link>
                       ) : null}
                       <Link href={`/admin/articles/${encodeURIComponent(article.externalId)}`} className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-bold text-white hover:bg-lime-500 hover:text-slate-950">
-                        Edit
+                        {isScheduled ? "Edit / Reschedule" : "Edit"}
                       </Link>
                     </div>
                   </div>
