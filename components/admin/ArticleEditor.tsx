@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import {
@@ -335,7 +335,7 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
       : savedRangeRef.current?.cloneRange() ?? null;
 
     setPasting(true);
-    setMessage(clipboardImages.length ? "Uploading pasted images…" : "Cleaning Word formatting…");
+    setMessage(clipboardImages.length ? "Uploading pasted imagesâ€¦" : "Cleaning Word formattingâ€¦");
 
     try {
       const source = new DOMParser().parseFromString(html || plainTextToHtml(plainText), "text/html");
@@ -436,7 +436,7 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
 
   async function remove() {
     if (!isEdit) return;
-    if (!window.confirm(`Delete “${form.title || "this article"}” permanently? This cannot be undone.`)) return;
+    if (!window.confirm(`Delete â€œ${form.title || "this article"}â€ permanently? This cannot be undone.`)) return;
     setBusy(true);
     setMessage("");
     const response = await fetch(
@@ -459,7 +459,7 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
   return (
     <main className="min-h-screen bg-slate-100 px-6 py-10 text-slate-950">
       <div className="mx-auto max-w-5xl">
-        <Link href="/admin" className="font-bold text-slate-700 hover:text-lime-600">← All articles</Link>
+        <Link href="/admin" className="font-bold text-slate-700 hover:text-lime-600">â† All articles</Link>
         <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-4xl font-black">{isEdit ? "Edit article" : "New article"}</h1>
           <div className="flex flex-wrap gap-3">
@@ -481,7 +481,7 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
 
         {preview ? (
           <article className="mt-8 rounded-2xl bg-white p-8 shadow-sm">
-            {form.imageUrl ? <img src={form.imageUrl} alt="" className="mb-8 w-full rounded-2xl object-cover" /> : null}
+            {form.imageUrl ? <img src={form.imageUrl} alt="" className="mx-auto mb-8 max-h-[500px] w-full rounded-2xl object-contain sm:w-3/4" /> : null}
             <h1 className="text-4xl font-black">{form.title || "Untitled article"}</h1>
             {form.subtitle ? <p className="mt-4 text-xl text-slate-600">{form.subtitle}</p> : null}
             <div className="article-content mt-8" dangerouslySetInnerHTML={{ __html: form.contentHtml }} />
@@ -571,7 +571,7 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
                   className="hidden"
                   onChange={handleBodyImageChange}
                 />
-                {pasting ? <span className="px-2 py-1 text-sm font-bold text-lime-700">Processing Word paste…</span> : null}
+                {pasting ? <span className="px-2 py-1 text-sm font-bold text-lime-700">Processing Word pasteâ€¦</span> : null}
               </div>
               <div
                 ref={editorRef}
@@ -593,3 +593,4 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
     </main>
   );
 }
+
