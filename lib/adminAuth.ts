@@ -45,7 +45,57 @@ export const adminCookieOptions = {
   maxAge: MAX_AGE_SECONDS,
 };
 
+function normalizeHost(value: string | null) {
+  return (value ?? "").trim().toLowerCase().replace(/\.$/, "");
+}
+
+function firstForwardedValue(value: string | null) {
+  return normalizeHost(value?.split(",")[0] ?? null);
+}
+
+function hostOnly(host: string) {
+  if (!host) return "";
+  try {
+    return new URL(`http://${host}`).hostname.toLowerCase();
+  } catch {
+    return host.split(":")[0].toLowerCase();
+  }
+}
+
+function isAllowedPublicHost(host: string) {
+  const hostname = hostOnly(host);
+  return (
+    hostname === "qctoterentals.com" ||
+    hostname === "www.qctoterentals.com" ||
+    hostname === "localhost" ||
+    hostname === "127.0.0.1"
+  );
+}
+
 export function isSameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  return !origin || origin === new URL(request.url).origin;
+  const originHeader = request.headers.get("origin");
+
+  // Requests without an Origin header are generally server-to-server or same-origin
+  // navigations. Keep the behavior used by the existing admin API.
+  if (!originHeader) return true;
+
+  let origin: URL;
+  try {
+    origin = new URL(originHeader);
+  } catch {
+    return false;
+  }
+
+  const originHost = normalizeHost(origin.host);
+  const forwardedHost = firstForwardedValue(request.headers.get("x-forwarded-host"));
+  const hostHeader = firstForwardedValue(request.headers.get("host"));
+
+  // Prefer the public host forwarded by Netlify, then the regular Host header.
+  // This avoids comparing the browser origin to an internal serverless request URL.
+  const requestHost = forwardedHost || hostHeader;
+
+  if (requestHost && originHost === requestHost) return true;
+
+  // Explicitly allow the two QC Tote Rental public hostnames and local development.
+  return isAllowedPublicHost(originHost) && isAllowedPublicHost(requestHost || originHost);
 }
