@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useRef, useState } from "react";
+import { ChangeEvent, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import FeaturedImageUpload from "@/components/admin/FeaturedImageUpload";
 
@@ -34,6 +34,8 @@ const empty: ArticleForm = {
   publishedAt: "",
 };
 
+const BODY_IMAGE_TYPES = "image/jpeg,image/png,image/webp,image/gif";
+
 function localDateTime(iso: string) {
   if (!iso) return "";
   const date = new Date(iso);
@@ -52,12 +54,15 @@ function slugify(value: string) {
 export default function ArticleEditor({ initialArticle }: { initialArticle?: ArticleForm }) {
   const router = useRouter();
   const editorRef = useRef<HTMLDivElement>(null);
+  const bodyImageInputRef = useRef<HTMLInputElement>(null);
+  const savedSelectionRef = useRef<Range | null>(null);
   const [form, setForm] = useState<ArticleForm>(() => ({
     ...empty,
     ...initialArticle,
     publishedAt: localDateTime(initialArticle?.publishedAt ?? ""),
   }));
   const [busy, setBusy] = useState(false);
+  const [uploadingBodyImage, setUploadingBodyImage] = useState(false);
   const [message, setMessage] = useState("");
   const [preview, setPreview] = useState(false);
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(Boolean(initialArticle?.slug));
@@ -84,6 +89,102 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
   function command(name: string, value?: string) {
     editorRef.current?.focus();
     document.execCommand(name, false, value);
+  }
+
+  function chooseBodyImage() {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      if (editor.contains(range.commonAncestorContainer)) {
+        savedSelectionRef.current = range.cloneRange();
+      } else {
+        savedSelectionRef.current = null;
+      }
+    } else {
+      savedSelectionRef.current = null;
+    }
+
+    bodyImageInputRef.current?.click();
+  }
+
+  function insertBodyImage(url: string, altText: string) {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const image = document.createElement("img");
+    image.src = url;
+    image.alt = altText;
+    image.loading = "lazy";
+    image.className = "my-8 w-full rounded-2xl object-cover";
+
+    const paragraph = document.createElement("p");
+    paragraph.appendChild(document.createElement("br"));
+
+    const range = savedSelectionRef.current;
+    if (range && editor.contains(range.commonAncestorContainer)) {
+      range.deleteContents();
+      range.insertNode(paragraph);
+      range.insertNode(image);
+      range.setStart(paragraph, 0);
+      range.collapse(true);
+    } else {
+      editor.appendChild(image);
+      editor.appendChild(paragraph);
+    }
+
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    if (range) selection?.addRange(range);
+    savedSelectionRef.current = null;
+    editor.focus();
+  }
+
+  async function handleBodyImageChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploadingBodyImage(true);
+    setMessage("");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/admin/images", {
+        method: "POST",
+        body: formData,
+      });
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(result?.error || "Image upload failed.");
+      }
+      if (!result?.url) {
+        throw new Error("The upload completed but no image URL was returned.");
+      }
+
+      const suggestedAlt = file.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ");
+      const altText = window.prompt(
+        "Describe this image for visitors who cannot see it:",
+        suggestedAlt,
+      );
+
+      if (altText === null) {
+        setMessage("The image was uploaded but not inserted because the description was canceled.");
+        return;
+      }
+
+      insertBodyImage(String(result.url), altText.trim());
+      setMessage("Image inserted into the article.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Image upload failed.");
+    } finally {
+      setUploadingBodyImage(false);
+      if (bodyImageInputRef.current) bodyImageInputRef.current.value = "";
+    }
   }
 
   function openPreview() {
@@ -250,6 +351,23 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
                 <button type="button" onClick={() => command("formatBlock", "h3")} className="rounded border bg-white px-3 py-1 font-bold">H3</button>
                 <button type="button" onClick={() => command("bold")} className="rounded border bg-white px-3 py-1 font-bold">Bold</button>
                 <button type="button" onClick={() => command("insertUnorderedList")} className="rounded border bg-white px-3 py-1 font-bold">List</button>
+                <input
+                  ref={bodyImageInputRef}
+                  type="file"
+                  accept={BODY_IMAGE_TYPES}
+                  className="hidden"
+                  onChange={handleBodyImageChange}
+                  disabled={uploadingBodyImage}
+                />
+                <button
+                  type="button"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={chooseBodyImage}
+                  disabled={uploadingBodyImage}
+                  className="rounded border bg-white px-3 py-1 font-bold disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {uploadingBodyImage ? "Uploading image..." : "Insert image"}
+                </button>
               </div>
               <div
                 ref={editorRef}
