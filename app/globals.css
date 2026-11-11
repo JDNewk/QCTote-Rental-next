@@ -25,11 +25,14 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Styles for article HTML delivered by the blog webhook */
+/* Styles for article HTML delivered by the blog webhook and manual editor. */
 .article-content {
   color: #334155;
   font-size: 1.125rem;
   line-height: 1.8;
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: plaintext;
 }
 .article-content > * + * { margin-top: 1.25rem; }
 .article-content h2 { margin-top: 2.5rem; font-size: 1.75rem; font-weight: 900; line-height: 1.25; color: #020617; }
