@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { ChangeEvent, useMemo, useRef, useState } from "react";
+import {
+  ChangeEvent,
+  ClipboardEvent as ReactClipboardEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import FeaturedImageUpload from "@/components/admin/FeaturedImageUpload";
 
@@ -34,7 +40,12 @@ const empty: ArticleForm = {
   publishedAt: "",
 };
 
-const BODY_IMAGE_TYPES = "image/jpeg,image/png,image/webp,image/gif";
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const ALLOWED_TAGS = new Set([
+  "p", "br", "h2", "h3", "h4", "strong", "b", "em", "i", "u",
+  "ul", "ol", "li", "a", "blockquote", "img", "figure", "figcaption",
+  "table", "thead", "tbody", "tr", "th", "td",
+]);
 
 function localDateTime(iso: string) {
   if (!iso) return "";
@@ -51,20 +62,159 @@ function slugify(value: string) {
     .replace(/^-+|-+$/g, "");
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function plainTextToHtml(value: string) {
+  return value
+    .replace(/\r\n?/g, "\n")
+    .split(/\n{2,}/)
+    .map((block) => `<p>${escapeHtml(block).replaceAll("\n", "<br>")}</p>`)
+    .join("");
+}
+
+function dataUrlToFile(dataUrl: string, fileName: string) {
+  const match = /^data:([^;,]+)(;base64)?,(.*)$/i.exec(dataUrl);
+  if (!match) return null;
+
+  const mimeType = match[1];
+  const binary = match[2] ? atob(match[3]) : decodeURIComponent(match[3]);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return new File([bytes], fileName, { type: mimeType });
+}
+
+function widthInPixels(value: string) {
+  const normalized = value.trim().toLowerCase();
+  const number = Number.parseFloat(normalized);
+  if (!Number.isFinite(number)) return null;
+  if (normalized.endsWith("in")) return number * 96;
+  if (normalized.endsWith("pt")) return number * (96 / 72);
+  if (normalized.endsWith("cm")) return number * (96 / 2.54);
+  if (normalized.endsWith("mm")) return number * (96 / 25.4);
+  if (normalized.endsWith("px") || /^\d+(\.\d+)?$/.test(normalized)) return number;
+  return null;
+}
+
+function normalizedImageWidth(image: HTMLImageElement) {
+  const styleWidth = image.style.width || image.getAttribute("width") || "";
+  const percentMatch = /^([0-9.]+)%$/.exec(styleWidth.trim());
+  if (percentMatch) {
+    const percent = Number.parseFloat(percentMatch[1]);
+    if (percent <= 42) return 33;
+    if (percent <= 62) return 50;
+    if (percent <= 87) return 75;
+    return 100;
+  }
+
+  const pixels = widthInPixels(styleWidth);
+  if (pixels == null) return 100;
+  if (pixels <= 280) return 33;
+  if (pixels <= 440) return 50;
+  if (pixels <= 660) return 75;
+  return 100;
+}
+
+function applyResponsiveImageStyle(image: HTMLImageElement, width: number) {
+  image.removeAttribute("width");
+  image.removeAttribute("height");
+  image.removeAttribute("class");
+  image.setAttribute(
+    "style",
+    `display:block;width:${width}%;max-width:100%;height:auto;margin:1.5rem auto;`,
+  );
+  image.setAttribute("loading", "lazy");
+}
+
+function sanitizeWordHtml(html: string) {
+  const source = new DOMParser().parseFromString(html, "text/html");
+  const output = document.implementation.createHTMLDocument("");
+
+  function clean(node: Node): Node[] {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return [output.createTextNode(node.textContent ?? "")];
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return [];
+
+    const element = node as HTMLElement;
+    let tag = element.tagName.toLowerCase();
+
+    if (["script", "style", "meta", "link", "object", "iframe", "xml"].includes(tag)) {
+      return [];
+    }
+
+    if (tag === "h1") tag = "h2";
+    if (tag === "div") tag = "p";
+    if (tag === "span" || !ALLOWED_TAGS.has(tag)) {
+      return Array.from(element.childNodes).flatMap(clean);
+    }
+
+    const cleaned = output.createElement(tag);
+
+    if (tag === "a") {
+      const href = element.getAttribute("href") ?? "";
+      if (/^(https?:\/\/|mailto:|tel:|\/)/i.test(href)) {
+        cleaned.setAttribute("href", href);
+        if (/^https?:\/\//i.test(href)) {
+          cleaned.setAttribute("target", "_blank");
+          cleaned.setAttribute("rel", "noopener noreferrer");
+        }
+      }
+    }
+
+    if (tag === "img") {
+      const image = element as HTMLImageElement;
+      const sourceUrl = image.getAttribute("src") ?? "";
+      if (/^(https?:\/\/|\/api\/article-images\/)/i.test(sourceUrl)) {
+        cleaned.setAttribute("src", sourceUrl);
+      }
+      cleaned.setAttribute("alt", image.getAttribute("alt") ?? "");
+      const style = image.getAttribute("style");
+      if (style) cleaned.setAttribute("style", style);
+      cleaned.setAttribute("loading", "lazy");
+      return cleaned.hasAttribute("src") ? [cleaned] : [];
+    }
+
+    for (const child of Array.from(element.childNodes)) {
+      for (const cleanedChild of clean(child)) cleaned.append(cleanedChild);
+    }
+
+    if (tag === "p" && !cleaned.textContent?.trim() && !cleaned.querySelector("img,br")) {
+      cleaned.append(output.createElement("br"));
+    }
+
+    return [cleaned];
+  }
+
+  const container = output.createElement("div");
+  for (const child of Array.from(source.body.childNodes)) {
+    for (const cleanedChild of clean(child)) container.append(cleanedChild);
+  }
+  return container.innerHTML;
+}
+
 export default function ArticleEditor({ initialArticle }: { initialArticle?: ArticleForm }) {
   const router = useRouter();
   const editorRef = useRef<HTMLDivElement>(null);
   const bodyImageInputRef = useRef<HTMLInputElement>(null);
-  const savedSelectionRef = useRef<Range | null>(null);
+  const savedRangeRef = useRef<Range | null>(null);
   const [form, setForm] = useState<ArticleForm>(() => ({
     ...empty,
     ...initialArticle,
     publishedAt: localDateTime(initialArticle?.publishedAt ?? ""),
   }));
   const [busy, setBusy] = useState(false);
-  const [uploadingBodyImage, setUploadingBodyImage] = useState(false);
   const [message, setMessage] = useState("");
   const [preview, setPreview] = useState(false);
+  const [pasting, setPasting] = useState(false);
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(Boolean(initialArticle?.slug));
   const isEdit = Boolean(initialArticle?.externalId);
   const isPublished = Boolean(initialArticle?.publishedAt && new Date(initialArticle.publishedAt) <= new Date());
@@ -86,104 +236,155 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
     setSlugManuallyEdited(true);
   }
 
+  function rememberSelection() {
+    const selection = window.getSelection();
+    const editor = editorRef.current;
+    if (!selection?.rangeCount || !editor) return;
+    const range = selection.getRangeAt(0);
+    if (editor.contains(range.commonAncestorContainer)) {
+      savedRangeRef.current = range.cloneRange();
+    }
+  }
+
   function command(name: string, value?: string) {
     editorRef.current?.focus();
     document.execCommand(name, false, value);
+    rememberSelection();
   }
 
-  function chooseBodyImage() {
+  async function uploadImage(file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await fetch("/api/admin/images", { method: "POST", body: formData });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result?.url) {
+      throw new Error(result?.error || "The image could not be uploaded.");
+    }
+    return String(result.url);
+  }
+
+  function insertHtml(html: string, rangeOverride?: Range | null) {
     const editor = editorRef.current;
     if (!editor) return;
 
-    const selection = window.getSelection();
-    if (selection && selection.rangeCount > 0) {
-      const range = selection.getRangeAt(0);
-      if (editor.contains(range.commonAncestorContainer)) {
-        savedSelectionRef.current = range.cloneRange();
-      } else {
-        savedSelectionRef.current = null;
-      }
-    } else {
-      savedSelectionRef.current = null;
-    }
-
-    bodyImageInputRef.current?.click();
-  }
-
-  function insertBodyImage(url: string, altText: string) {
-    const editor = editorRef.current;
-    if (!editor) return;
-
-    const image = document.createElement("img");
-    image.src = url;
-    image.alt = altText;
-    image.loading = "lazy";
-    image.className = "my-8 w-full rounded-2xl object-cover";
-
-    const paragraph = document.createElement("p");
-    paragraph.appendChild(document.createElement("br"));
-
-    const range = savedSelectionRef.current;
-    if (range && editor.contains(range.commonAncestorContainer)) {
-      range.deleteContents();
-      range.insertNode(paragraph);
-      range.insertNode(image);
-      range.setStart(paragraph, 0);
-      range.collapse(true);
-    } else {
-      editor.appendChild(image);
-      editor.appendChild(paragraph);
-    }
-
-    const selection = window.getSelection();
-    selection?.removeAllRanges();
-    if (range) selection?.addRange(range);
-    savedSelectionRef.current = null;
     editor.focus();
+    const selection = window.getSelection();
+    let range = rangeOverride?.cloneRange() ?? savedRangeRef.current?.cloneRange() ?? null;
+
+    if (!range || !editor.contains(range.commonAncestorContainer)) {
+      range = document.createRange();
+      range.selectNodeContents(editor);
+      range.collapse(false);
+    }
+
+    range.deleteContents();
+    const fragment = range.createContextualFragment(html);
+    const lastNode = fragment.lastChild;
+    range.insertNode(fragment);
+
+    if (lastNode) {
+      range.setStartAfter(lastNode);
+      range.collapse(true);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      savedRangeRef.current = range.cloneRange();
+    }
+  }
+
+  async function insertBodyImage(file: File) {
+    setBusy(true);
+    setMessage("");
+    try {
+      const url = await uploadImage(file);
+      const alt = window.prompt("Describe this image for accessibility:", "") ?? "";
+      const requestedWidth = Number.parseInt(
+        window.prompt("Image width: enter 33, 50, 75, or 100", "75") ?? "75",
+        10,
+      );
+      const width = [33, 50, 75, 100].includes(requestedWidth) ? requestedWidth : 75;
+      insertHtml(
+        `<img src="${escapeHtml(url)}" alt="${escapeHtml(alt)}" loading="lazy" style="display:block;width:${width}%;max-width:100%;height:auto;margin:1.5rem auto;"><p><br></p>`,
+      );
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "The image could not be inserted.");
+    } finally {
+      setBusy(false);
+      if (bodyImageInputRef.current) bodyImageInputRef.current.value = "";
+    }
   }
 
   async function handleBodyImageChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
+    await insertBodyImage(file);
+  }
 
-    setUploadingBodyImage(true);
-    setMessage("");
+  async function handleRichPaste(event: ReactClipboardEvent<HTMLDivElement>) {
+    const clipboard = event.clipboardData;
+    const html = clipboard.getData("text/html");
+    const plainText = clipboard.getData("text/plain");
+    const clipboardImages = Array.from(clipboard.files).filter((file) =>
+      ACCEPTED_IMAGE_TYPES.includes(file.type),
+    );
+
+    if (!html && clipboardImages.length === 0) return;
+
+    event.preventDefault();
+    const pasteRange = window.getSelection()?.rangeCount
+      ? window.getSelection()!.getRangeAt(0).cloneRange()
+      : savedRangeRef.current?.cloneRange() ?? null;
+
+    setPasting(true);
+    setMessage(clipboardImages.length ? "Uploading pasted images…" : "Cleaning Word formatting…");
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
+      const source = new DOMParser().parseFromString(html || plainTextToHtml(plainText), "text/html");
+      const sourceImages = Array.from(source.body.querySelectorAll("img"));
+      let fileIndex = 0;
 
-      const response = await fetch("/api/admin/images", {
-        method: "POST",
-        body: formData,
-      });
-      const result = await response.json().catch(() => ({}));
+      for (let index = 0; index < sourceImages.length; index += 1) {
+        const image = sourceImages[index];
+        const src = image.getAttribute("src") ?? "";
+        const width = normalizedImageWidth(image);
+        let permanentUrl = src;
 
-      if (!response.ok) {
-        throw new Error(result?.error || "Image upload failed.");
+        if (src.startsWith("data:image/")) {
+          const file = dataUrlToFile(src, `word-paste-${Date.now()}-${index}.png`);
+          if (file) permanentUrl = await uploadImage(file);
+        } else if (!/^https?:\/\//i.test(src) && fileIndex < clipboardImages.length) {
+          permanentUrl = await uploadImage(clipboardImages[fileIndex]);
+          fileIndex += 1;
+        }
+
+        if (/^https?:\/\//i.test(permanentUrl) || permanentUrl.startsWith("/api/article-images/")) {
+          image.setAttribute("src", permanentUrl);
+          applyResponsiveImageStyle(image, width);
+        } else {
+          image.remove();
+        }
       }
-      if (!result?.url) {
-        throw new Error("The upload completed but no image URL was returned.");
+
+      while (fileIndex < clipboardImages.length) {
+        const file = clipboardImages[fileIndex];
+        const permanentUrl = await uploadImage(file);
+        const paragraph = source.createElement("p");
+        const image = source.createElement("img");
+        image.setAttribute("src", permanentUrl);
+        image.setAttribute("alt", "");
+        applyResponsiveImageStyle(image, 100);
+        paragraph.append(image);
+        source.body.append(paragraph);
+        fileIndex += 1;
       }
 
-      const suggestedAlt = file.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ");
-      const altText = window.prompt(
-        "Describe this image for visitors who cannot see it:",
-        suggestedAlt,
-      );
-
-      if (altText === null) {
-        setMessage("The image was uploaded but not inserted because the description was canceled.");
-        return;
-      }
-
-      insertBodyImage(String(result.url), altText.trim());
-      setMessage("Image inserted into the article.");
+      const cleanedHtml = sanitizeWordHtml(source.body.innerHTML);
+      insertHtml(cleanedHtml || plainTextToHtml(plainText), pasteRange);
+      setMessage("Word content pasted. Formatting was cleaned and images were uploaded.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Image upload failed.");
+      setMessage(error instanceof Error ? error.message : "The Word content could not be pasted.");
+      if (plainText) insertHtml(plainTextToHtml(plainText), pasteRange);
     } finally {
-      setUploadingBodyImage(false);
-      if (bodyImageInputRef.current) bodyImageInputRef.current.value = "";
+      setPasting(false);
     }
   }
 
@@ -265,13 +466,13 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
             <button type="button" onClick={() => (preview ? setPreview(false) : openPreview())} className="rounded-lg border border-slate-300 bg-white px-5 py-3 font-bold">
               {preview ? "Edit" : "Preview"}
             </button>
-            <button type="button" disabled={busy} onClick={() => save("draft")} className="rounded-lg border border-slate-950 px-5 py-3 font-bold disabled:opacity-50">Save draft</button>
-            <button type="button" disabled={busy} onClick={() => save("publish")} className="rounded-lg bg-lime-400 px-5 py-3 font-black disabled:opacity-50">Publish / schedule</button>
+            <button type="button" disabled={busy || pasting} onClick={() => save("draft")} className="rounded-lg border border-slate-950 px-5 py-3 font-bold disabled:opacity-50">Save draft</button>
+            <button type="button" disabled={busy || pasting} onClick={() => save("publish")} className="rounded-lg bg-lime-400 px-5 py-3 font-black disabled:opacity-50">Publish / schedule</button>
             {isEdit && isPublished ? (
-              <button type="button" disabled={busy} onClick={unpublish} className="rounded-lg bg-amber-100 px-5 py-3 font-bold text-amber-900 disabled:opacity-50">Unpublish</button>
+              <button type="button" disabled={busy || pasting} onClick={unpublish} className="rounded-lg bg-amber-100 px-5 py-3 font-bold text-amber-900 disabled:opacity-50">Unpublish</button>
             ) : null}
             {isEdit ? (
-              <button type="button" disabled={busy} onClick={remove} className="rounded-lg bg-red-700 px-5 py-3 font-bold text-white disabled:opacity-50">Delete permanently</button>
+              <button type="button" disabled={busy || pasting} onClick={remove} className="rounded-lg bg-red-700 px-5 py-3 font-bold text-white disabled:opacity-50">Delete permanently</button>
             ) : null}
           </div>
         </div>
@@ -288,14 +489,14 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
         ) : (
           <div className="mt-8 space-y-7 rounded-2xl bg-white p-8 shadow-sm">
             <label className={label}>Title
-              <input value={form.title} onChange={(e) => updateTitle(e.target.value)} className={input} />
+              <input value={form.title} onChange={(event) => updateTitle(event.target.value)} className={input} />
             </label>
 
             <label className={label}>Slug
               <div className="mt-2 flex gap-3">
                 <input
                   value={form.slug}
-                  onChange={(e) => { update("slug", e.target.value); setSlugManuallyEdited(true); }}
+                  onChange={(event) => { update("slug", event.target.value); setSlugManuallyEdited(true); }}
                   className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-950"
                 />
                 <button type="button" onClick={makeSlug} className="shrink-0 rounded-lg border border-slate-300 bg-white px-4 py-2 font-bold">Create from title</button>
@@ -303,15 +504,15 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
             </label>
 
             <label className={label}>Subtitle
-              <input value={form.subtitle} onChange={(e) => update("subtitle", e.target.value)} className={input} />
+              <input value={form.subtitle} onChange={(event) => update("subtitle", event.target.value)} className={input} />
             </label>
 
             <div className="grid gap-6 sm:grid-cols-2">
               <label className={label}>Category
-                <input value={form.category} onChange={(e) => update("category", e.target.value)} className={input} />
+                <input value={form.category} onChange={(event) => update("category", event.target.value)} className={input} />
               </label>
               <label className={label}>Author
-                <input value={form.authorName} onChange={(e) => update("authorName", e.target.value)} className={input} />
+                <input value={form.authorName} onChange={(event) => update("authorName", event.target.value)} className={input} />
               </label>
             </div>
 
@@ -322,61 +523,68 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
               </div>
               <details className="mt-4">
                 <summary className="cursor-pointer text-sm font-bold text-slate-600">Advanced: use an existing image URL</summary>
-                <input value={form.imageUrl} onChange={(e) => update("imageUrl", e.target.value)} className={input} placeholder="https://..." />
+                <input value={form.imageUrl} onChange={(event) => update("imageUrl", event.target.value)} className={input} placeholder="https://..." />
               </details>
             </div>
 
             <div className="grid gap-6 sm:grid-cols-2">
               <label className={label}>Read time
-                <input value={form.readTime} onChange={(e) => update("readTime", e.target.value)} className={input} placeholder="6 min read" />
+                <input value={form.readTime} onChange={(event) => update("readTime", event.target.value)} className={input} placeholder="6 min read" />
               </label>
               <label className={label}>Publication date
-                <input type="datetime-local" value={form.publishedAt} onChange={(e) => update("publishedAt", e.target.value)} className={input} />
+                <input type="datetime-local" value={form.publishedAt} onChange={(event) => update("publishedAt", event.target.value)} className={input} />
               </label>
             </div>
 
             <label className={label}>SEO title
-              <input value={form.metaTitle} onChange={(e) => update("metaTitle", e.target.value)} className={input} />
+              <input value={form.metaTitle} onChange={(event) => update("metaTitle", event.target.value)} className={input} />
             </label>
 
             <label className={label}>Meta description
-              <textarea value={form.metaDescription} onChange={(e) => update("metaDescription", e.target.value)} className={`${input} min-h-28`} />
+              <textarea value={form.metaDescription} onChange={(event) => update("metaDescription", event.target.value)} className={`${input} min-h-28`} />
               <span className="mt-1 block text-xs font-normal text-slate-500">{seoLength} characters</span>
             </label>
 
             <div>
               <p className={label}>Article content</p>
-              <div className="mt-2 flex flex-wrap gap-2 rounded-t-lg border border-b-0 border-slate-300 bg-slate-50 p-3">
+              <p className="mt-2 text-sm text-slate-500">
+                Paste a formatted article from Word. Headings, bold text, lists, links, tables, and images will be cleaned for the website. Pasted images are uploaded automatically.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2 rounded-t-lg border border-b-0 border-slate-300 bg-slate-50 p-3">
                 <button type="button" onClick={() => command("formatBlock", "h2")} className="rounded border bg-white px-3 py-1 font-bold">H2</button>
                 <button type="button" onClick={() => command("formatBlock", "h3")} className="rounded border bg-white px-3 py-1 font-bold">H3</button>
                 <button type="button" onClick={() => command("bold")} className="rounded border bg-white px-3 py-1 font-bold">Bold</button>
                 <button type="button" onClick={() => command("insertUnorderedList")} className="rounded border bg-white px-3 py-1 font-bold">List</button>
+                <button
+                  type="button"
+                  disabled={busy || pasting}
+                  onMouseDown={rememberSelection}
+                  onClick={() => bodyImageInputRef.current?.click()}
+                  className="rounded border bg-white px-3 py-1 font-bold disabled:opacity-50"
+                >
+                  Insert image
+                </button>
                 <input
                   ref={bodyImageInputRef}
                   type="file"
-                  accept={BODY_IMAGE_TYPES}
+                  accept={ACCEPTED_IMAGE_TYPES.join(",")}
                   className="hidden"
                   onChange={handleBodyImageChange}
-                  disabled={uploadingBodyImage}
                 />
-                <button
-                  type="button"
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={chooseBodyImage}
-                  disabled={uploadingBodyImage}
-                  className="rounded border bg-white px-3 py-1 font-bold disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {uploadingBodyImage ? "Uploading image..." : "Insert image"}
-                </button>
+                {pasting ? <span className="px-2 py-1 text-sm font-bold text-lime-700">Processing Word paste…</span> : null}
               </div>
               <div
                 ref={editorRef}
-                contentEditable
+                contentEditable={!pasting}
                 dir="ltr"
                 suppressContentEditableWarning
                 className="article-content min-h-96 rounded-b-lg border border-slate-300 bg-white p-5 text-left text-slate-950 [direction:ltr] [unicode-bidi:isolate]"
                 style={{ direction: "ltr", textAlign: "left", unicodeBidi: "isolate" }}
                 dangerouslySetInnerHTML={{ __html: form.contentHtml }}
+                onPaste={handleRichPaste}
+                onKeyUp={rememberSelection}
+                onMouseUp={rememberSelection}
+                onFocus={rememberSelection}
               />
             </div>
           </div>
