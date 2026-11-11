@@ -45,9 +45,7 @@ export default async function ArticlePage({ params }: BlogArticlePageProps) {
   return (
     <div className="bg-slate-50">
       <article className="mx-auto max-w-3xl px-6 py-12">
-        <Link href="/blog" className="font-bold text-slate-700 hover:text-lime-600">
-          ← All articles
-        </Link>
+        <Link href="/blog" className="font-bold text-slate-700 hover:text-lime-600">← All articles</Link>
 
         <header className="mt-8">
           {article.category && (
@@ -68,10 +66,14 @@ export default async function ArticlePage({ params }: BlogArticlePageProps) {
 
         {article.imageUrl && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={article.imageUrl} alt={article.title ?? ""} className="mt-8 w-full rounded-2xl object-cover" />
+          <img
+            src={article.imageUrl}
+            alt={article.title ?? ""}
+            className="mx-auto mt-8 max-h-[500px] w-full rounded-2xl object-contain sm:w-3/4"
+          />
         )}
 
-        {/* HTML comes from the authenticated GrandRanker webhook. */}
+        {/* HTML comes from the authenticated GrandRanker webhook or private article editor. */}
         <div className="article-content mt-10" dangerouslySetInnerHTML={{ __html: article.contentHtml ?? "" }} />
       </article>
 
@@ -79,9 +81,7 @@ export default async function ArticlePage({ params }: BlogArticlePageProps) {
         <div className="mx-auto max-w-3xl px-6">
           <h2 className="text-3xl font-black">Ready to Skip the Cardboard?</h2>
           <p className="mt-3 text-lg">Reusable moving totes delivered to your door and picked up when you&apos;re done.</p>
-          <Link href="/reserve" className="mt-7 inline-block rounded-lg bg-slate-950 px-7 py-3 font-bold text-white">
-            Reserve Your Totes
-          </Link>
+          <Link href="/reserve" className="mt-7 inline-block rounded-lg bg-slate-950 px-7 py-3 font-bold text-white">Reserve Your Totes</Link>
         </div>
       </section>
     </div>
