@@ -459,7 +459,7 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
   return (
     <main className="min-h-screen bg-slate-100 px-6 py-10 text-slate-950">
       <div className="mx-auto max-w-5xl">
-        <Link href="/admin" className="font-bold text-slate-700 hover:text-lime-600">â† All articles</Link>
+        <Link href="/admin" className="font-bold text-slate-700 hover:text-lime-600">back to all articles</Link>
         <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-4xl font-black">{isEdit ? "Edit article" : "New article"}</h1>
           <div className="flex flex-wrap gap-3">
