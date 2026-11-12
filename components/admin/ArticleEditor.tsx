@@ -145,6 +145,103 @@ function applyResponsiveImageStyle(image: HTMLImageElement, width: number) {
   image.setAttribute("loading", "lazy");
 }
 
+function normalizeArticleHtml(html: string) {
+  const documentHtml = new DOMParser().parseFromString(html, "text/html");
+
+  documentHtml.body.querySelectorAll('[data-article-toc="true"]').forEach((element) => element.remove());
+
+  documentHtml.body.querySelectorAll("li").forEach((item) => {
+    Array.from(item.children).forEach((child) => {
+      if (child.tagName.toLowerCase() === "p") {
+        const paragraph = child as HTMLParagraphElement;
+        if (!paragraph.textContent?.trim() && !paragraph.querySelector("img,br")) {
+          paragraph.remove();
+        } else if (item.children.length === 1) {
+          paragraph.replaceWith(...Array.from(paragraph.childNodes));
+        }
+      }
+    });
+  });
+
+  Array.from(documentHtml.body.children).forEach((element) => {
+    if (element.tagName.toLowerCase() !== "p") return;
+    const paragraph = element as HTMLParagraphElement;
+    const isEmpty = !paragraph.textContent?.trim() && !paragraph.querySelector("img");
+    if (!isEmpty) return;
+
+    const previousTag = paragraph.previousElementSibling?.tagName.toLowerCase();
+    const nextTag = paragraph.nextElementSibling?.tagName.toLowerCase();
+    const structuralTags = new Set(["h2", "h3", "h4", "ul", "ol"]);
+
+    if (structuralTags.has(previousTag ?? "") || structuralTags.has(nextTag ?? "")) {
+      paragraph.remove();
+    }
+  });
+
+  let previousWasEmpty = false;
+  Array.from(documentHtml.body.children).forEach((element) => {
+    const isEmptyParagraph =
+      element.tagName.toLowerCase() === "p" &&
+      !element.textContent?.trim() &&
+      !element.querySelector("img");
+
+    if (isEmptyParagraph && previousWasEmpty) {
+      element.remove();
+      return;
+    }
+    previousWasEmpty = isEmptyParagraph;
+  });
+
+  return documentHtml.body.innerHTML;
+}
+
+function prepareArticleHtml(html: string, includeTableOfContents: boolean) {
+  const normalizedHtml = normalizeArticleHtml(html);
+  const documentHtml = new DOMParser().parseFromString(normalizedHtml, "text/html");
+  documentHtml.body.querySelectorAll('[data-article-toc="true"]').forEach((element) => element.remove());
+
+  const headings = Array.from(documentHtml.body.querySelectorAll("h2"));
+  const usedIds = new Set<string>();
+
+  headings.forEach((heading, index) => {
+    const baseId = slugify(heading.textContent ?? "") || `section-${index + 1}`;
+    let uniqueId = baseId;
+    let suffix = 2;
+    while (usedIds.has(uniqueId)) {
+      uniqueId = `${baseId}-${suffix}`;
+      suffix += 1;
+    }
+    usedIds.add(uniqueId);
+    heading.id = uniqueId;
+  });
+
+  if (includeTableOfContents && headings.length >= 2) {
+    const navigation = documentHtml.createElement("nav");
+    navigation.setAttribute("data-article-toc", "true");
+    navigation.setAttribute("aria-label", "Table of contents");
+    navigation.className = "article-toc";
+
+    const title = documentHtml.createElement("p");
+    title.className = "article-toc-title";
+    title.textContent = "In this article";
+    navigation.append(title);
+
+    const list = documentHtml.createElement("ol");
+    headings.forEach((heading) => {
+      const item = documentHtml.createElement("li");
+      const link = documentHtml.createElement("a");
+      link.href = `#${heading.id}`;
+      link.textContent = heading.textContent?.trim() || "Article section";
+      item.append(link);
+      list.append(item);
+    });
+    navigation.append(list);
+    headings[0].before(navigation);
+  }
+
+  return documentHtml.body.innerHTML;
+}
+
 function sanitizeWordHtml(html: string) {
   const source = new DOMParser().parseFromString(html, "text/html");
   const output = document.implementation.createHTMLDocument("");
@@ -209,7 +306,7 @@ function sanitizeWordHtml(html: string) {
   for (const child of Array.from(source.body.childNodes)) {
     for (const cleanedChild of clean(child)) container.append(cleanedChild);
   }
-  return container.innerHTML;
+  return normalizeArticleHtml(container.innerHTML);
 }
 
 export default function ArticleEditor({ initialArticle }: { initialArticle?: ArticleForm }) {
@@ -231,6 +328,9 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
   const [pasting, setPasting] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(initialIsScheduled);
   const [scheduledFor, setScheduledFor] = useState(localDateTime(initialPublishedAt));
+  const [includeTableOfContents, setIncludeTableOfContents] = useState(
+    initialArticle?.contentHtml?.includes('data-article-toc="true"') ?? true,
+  );
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(Boolean(initialArticle?.slug));
 
   const isEdit = Boolean(initialArticle?.externalId);
@@ -268,6 +368,38 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
     editorRef.current?.focus();
     document.execCommand(name, false, value);
     rememberSelection();
+  }
+
+  function addLink() {
+    const url = window.prompt("Enter the link URL:", "https://");
+    if (!url) return;
+
+    const trimmedUrl = url.trim();
+    if (!/^(https?:\/\/|mailto:|tel:|\/)/i.test(trimmedUrl)) {
+      setMessage("Use a full web address beginning with https://, or a mailto:, tel:, or site-relative link.");
+      return;
+    }
+
+    const editor = editorRef.current;
+    const range = savedRangeRef.current?.cloneRange();
+    if (!editor || !range || !editor.contains(range.commonAncestorContainer) || range.collapsed) {
+      setMessage("Select the text you want to link, then choose Link.");
+      return;
+    }
+
+    editor.focus();
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    document.execCommand("createLink", false, trimmedUrl);
+
+    const anchor = selection?.anchorNode?.parentElement?.closest("a");
+    if (anchor && /^https?:\/\//i.test(trimmedUrl)) {
+      anchor.setAttribute("target", "_blank");
+      anchor.setAttribute("rel", "noopener noreferrer");
+    }
+    rememberSelection();
+    setMessage("Link added.");
   }
 
   async function uploadImage(file: File) {
@@ -396,7 +528,7 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
       }
 
       const cleanedHtml = sanitizeWordHtml(source.body.innerHTML);
-      insertHtml(cleanedHtml || plainTextToHtml(plainText), pasteRange);
+      insertHtml(normalizeArticleHtml(cleanedHtml || plainTextToHtml(plainText)), pasteRange);
       setMessage("Word content pasted. Formatting was cleaned and images were uploaded.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "The Word content could not be pasted.");
@@ -407,7 +539,9 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
   }
 
   function openPreview() {
-    const contentHtml = editorRef.current?.innerHTML ?? form.contentHtml;
+    const rawHtml = editorRef.current?.innerHTML ?? form.contentHtml;
+    const contentHtml = prepareArticleHtml(rawHtml, includeTableOfContents);
+    if (editorRef.current) editorRef.current.innerHTML = contentHtml;
     setForm((current) => ({ ...current, contentHtml }));
     setPreview(true);
   }
@@ -428,7 +562,9 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
     setBusy(true);
     setMessage("");
 
-    const contentHtml = editorRef.current?.innerHTML ?? form.contentHtml;
+    const rawHtml = editorRef.current?.innerHTML ?? form.contentHtml;
+    const contentHtml = prepareArticleHtml(rawHtml, includeTableOfContents);
+    if (editorRef.current) editorRef.current.innerHTML = contentHtml;
     const publishedAt =
       mode === "draft"
         ? null
@@ -658,11 +794,34 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
               <p className="mt-2 text-sm text-slate-500">
                 Paste a formatted article from Word. Headings, bold text, lists, links, tables, and images will be cleaned for the website. Pasted images are uploaded automatically.
               </p>
-              <div className="mt-3 flex flex-wrap gap-2 rounded-t-lg border border-b-0 border-slate-300 bg-slate-50 p-3">
+              <label className="mt-4 flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={includeTableOfContents}
+                  onChange={(event) => setIncludeTableOfContents(event.target.checked)}
+                  className="mt-1 h-4 w-4 accent-lime-500"
+                />
+                <span>
+                  Add a clickable table of contents from Heading 2 sections.
+                  <span className="mt-1 block font-normal text-slate-500">The table appears when the article has at least two H2 headings.</span>
+                </span>
+              </label>
+              <div className="sticky top-3 z-30 mt-3 flex flex-wrap gap-2 rounded-lg border border-slate-300 bg-slate-50/95 p-3 shadow-md backdrop-blur">
                 <button type="button" onClick={() => command("formatBlock", "h2")} className="rounded border bg-white px-3 py-1 font-bold">H2</button>
                 <button type="button" onClick={() => command("formatBlock", "h3")} className="rounded border bg-white px-3 py-1 font-bold">H3</button>
                 <button type="button" onClick={() => command("bold")} className="rounded border bg-white px-3 py-1 font-bold">Bold</button>
                 <button type="button" onClick={() => command("insertUnorderedList")} className="rounded border bg-white px-3 py-1 font-bold">List</button>
+                <button
+                  type="button"
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    rememberSelection();
+                  }}
+                  onClick={addLink}
+                  className="rounded border bg-white px-3 py-1 font-bold"
+                >
+                  Link
+                </button>
                 <button
                   type="button"
                   disabled={busy || pasting}

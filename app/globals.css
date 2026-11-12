@@ -29,24 +29,121 @@ body {
 .article-content {
   color: #334155;
   font-size: 1.125rem;
-  line-height: 1.8;
+  line-height: 1.7;
   direction: ltr;
   text-align: left;
   unicode-bidi: plaintext;
 }
-.article-content > * + * { margin-top: 1.25rem; }
-.article-content h2 { margin-top: 2.5rem; font-size: 1.75rem; font-weight: 900; line-height: 1.25; color: #020617; }
-.article-content h3 { margin-top: 2rem; font-size: 1.375rem; font-weight: 800; line-height: 1.3; color: #020617; }
-.article-content h4 { margin-top: 1.5rem; font-size: 1.125rem; font-weight: 800; color: #020617; }
-.article-content a { color: #4d7c0f; font-weight: 600; text-decoration: underline; }
-.article-content ul { list-style: disc; padding-left: 1.5rem; }
-.article-content ol { list-style: decimal; padding-left: 1.5rem; }
-.article-content li + li { margin-top: 0.5rem; }
-.article-content blockquote { border-left: 4px solid #a3e635; padding-left: 1rem; font-style: italic; color: #475569; }
+
+/* Default rhythm within a section is intentionally compact. */
+.article-content > * + * { margin-top: 0.75rem; }
+
+/* New sections keep stronger separation. */
+.article-content h2 {
+  margin-top: 2.5rem;
+  font-size: 1.75rem;
+  font-weight: 900;
+  line-height: 1.25;
+  color: #020617;
+}
+.article-content h3 {
+  margin-top: 2rem;
+  font-size: 1.375rem;
+  font-weight: 800;
+  line-height: 1.3;
+  color: #020617;
+}
+.article-content h4 {
+  margin-top: 1.5rem;
+  font-size: 1.125rem;
+  font-weight: 800;
+  color: #020617;
+}
+
+/* Keep content following headings visually connected to the heading. */
+.article-content h2 + p,
+.article-content h3 + p,
+.article-content h4 + p,
+.article-content h2 + ul,
+.article-content h2 + ol,
+.article-content h3 + ul,
+.article-content h3 + ol,
+.article-content h4 + ul,
+.article-content h4 + ol {
+  margin-top: 0.55rem;
+}
+
+.article-content a {
+  color: #4d7c0f;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+/* Lists: moderate separation as a block, tight spacing between related bullets. */
+.article-content ul,
+.article-content ol {
+  padding-left: 1.5rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.8rem;
+  line-height: 1.5;
+}
+.article-content ul { list-style: disc; }
+.article-content ol { list-style: decimal; }
+.article-content li { margin: 0; padding: 0; }
+.article-content li + li { margin-top: 0.1rem; }
+.article-content li > p { margin: 0; }
+.article-content li > ul,
+.article-content li > ol {
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+/* Explicitly keep the text introducing a list close to that list. */
+.article-content p + ul,
+.article-content p + ol {
+  margin-top: 0.5rem;
+}
+
+/* Keep the paragraph following a list connected without crowding it. */
+.article-content ul + p,
+.article-content ol + p {
+  margin-top: 0.8rem;
+}
+
+.article-content blockquote {
+  border-left: 4px solid #a3e635;
+  padding-left: 1rem;
+  font-style: italic;
+  color: #475569;
+}
 .article-content img { max-width: 100%; height: auto; border-radius: 1rem; }
 .article-content table { width: 100%; border-collapse: collapse; font-size: 1rem; }
-.article-content th, .article-content td { border: 1px solid #cbd5e1; padding: 0.5rem 0.75rem; text-align: left; }
+.article-content th,
+.article-content td { border: 1px solid #cbd5e1; padding: 0.5rem 0.75rem; text-align: left; }
 .article-content th { background: #f1f5f9; font-weight: 700; }
 .article-content code { background: #f1f5f9; padding: 0.1rem 0.35rem; border-radius: 0.25rem; font-size: 0.95em; }
 .article-content pre { overflow-x: auto; background: #0f172a; color: #e2e8f0; padding: 1rem; border-radius: 0.75rem; }
 .article-content pre code { background: none; padding: 0; }
+
+/* Generated table of contents */
+.article-content .article-toc {
+  margin: 2rem 0;
+  border: 1px solid #cbd5e1;
+  border-left: 5px solid #a3e635;
+  border-radius: 0.9rem;
+  background: #f8fafc;
+  padding: 1.25rem 1.5rem;
+}
+.article-content .article-toc-title {
+  margin: 0;
+  color: #020617;
+  font-size: 1.125rem;
+  font-weight: 900;
+}
+.article-content .article-toc ol {
+  margin: 0.65rem 0 0;
+  padding-left: 1.5rem;
+}
+.article-content .article-toc li + li { margin-top: 0.15rem; }
+.article-content h2[id],
+.article-content h3[id] { scroll-margin-top: 6rem; }
