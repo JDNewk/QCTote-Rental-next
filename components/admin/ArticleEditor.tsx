@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   ChangeEvent,
   ClipboardEvent as ReactClipboardEvent,
+  MouseEvent as ReactMouseEvent,
   useMemo,
   useRef,
   useState,
@@ -313,6 +314,8 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
   const router = useRouter();
   const editorRef = useRef<HTMLDivElement>(null);
   const bodyImageInputRef = useRef<HTMLInputElement>(null);
+  const replaceBodyImageInputRef = useRef<HTMLInputElement>(null);
+  const selectedBodyImageRef = useRef<HTMLImageElement | null>(null);
   const savedRangeRef = useRef<Range | null>(null);
   const initialPublishedAt = initialArticle?.publishedAt ?? "";
   const initialIsScheduled = Boolean(initialPublishedAt && new Date(initialPublishedAt) > new Date());
@@ -467,6 +470,93 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
     const file = event.target.files?.[0];
     if (!file) return;
     await insertBodyImage(file);
+  }
+
+  function clearSelectedBodyImage() {
+    const selected = selectedBodyImageRef.current;
+    if (selected) {
+      selected.style.outline = "";
+      selected.style.outlineOffset = "";
+    }
+    selectedBodyImageRef.current = null;
+  }
+
+  function handleEditorClick(event: ReactMouseEvent<HTMLDivElement>) {
+    const target = event.target;
+    if (!(target instanceof HTMLImageElement)) {
+      clearSelectedBodyImage();
+      return;
+    }
+
+    clearSelectedBodyImage();
+    selectedBodyImageRef.current = target;
+    target.style.outline = "3px solid #84cc16";
+    target.style.outlineOffset = "3px";
+  }
+
+  function requireSelectedBodyImage() {
+    const selected = selectedBodyImageRef.current;
+    if (!selected || !editorRef.current?.contains(selected)) {
+      window.alert("Click an image in Article Content first, then choose an image action.");
+      return null;
+    }
+    return selected;
+  }
+
+  function resizeSelectedBodyImage(width: number) {
+    const selected = requireSelectedBodyImage();
+    if (!selected) return;
+
+    applyResponsiveImageStyle(selected, width);
+    selected.style.outline = "3px solid #84cc16";
+    selected.style.outlineOffset = "3px";
+  }
+
+  function removeSelectedBodyImage() {
+    const selected = requireSelectedBodyImage();
+    if (!selected) return;
+    if (!window.confirm("Remove this image from the article?")) return;
+
+    const parent = selected.parentElement;
+    const next = parent?.nextElementSibling;
+    selected.remove();
+
+    if (parent?.tagName.toLowerCase() === "p" && !parent.textContent?.trim() && !parent.querySelector("img")) {
+      parent.remove();
+    }
+    if (next?.tagName.toLowerCase() === "p" && !next.textContent?.trim() && !next.querySelector("img")) {
+      next.remove();
+    }
+
+    selectedBodyImageRef.current = null;
+  }
+
+  async function handleReplaceBodyImage(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const selected = requireSelectedBodyImage();
+    if (!selected) {
+      event.target.value = "";
+      return;
+    }
+
+    try {
+      const previousWidth = normalizedImageWidth(selected);
+      const url = await uploadImage(file);
+      const currentAlt = selected.getAttribute("alt") ?? "";
+      const alt = window.prompt("Describe this image for accessibility:", currentAlt);
+
+      selected.setAttribute("src", url);
+      if (alt !== null) selected.setAttribute("alt", alt);
+      applyResponsiveImageStyle(selected, previousWidth);
+      selected.style.outline = "3px solid #84cc16";
+      selected.style.outlineOffset = "3px";
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "The image could not be replaced.");
+    } finally {
+      event.target.value = "";
+    }
   }
 
   async function handleRichPaste(event: ReactClipboardEvent<HTMLDivElement>) {
@@ -838,6 +928,42 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
                   className="hidden"
                   onChange={handleBodyImageChange}
                 />
+                <span className="mx-1 hidden h-7 w-px bg-slate-300 sm:block" aria-hidden="true" />
+                <span className="self-center text-xs font-bold uppercase tracking-wide text-slate-500">Selected image</span>
+                {[33, 50, 75, 100].map((width) => (
+                  <button
+                    key={width}
+                    type="button"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => resizeSelectedBodyImage(width)}
+                    className="rounded border bg-white px-3 py-1 font-bold"
+                  >
+                    {width}%
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => replaceBodyImageInputRef.current?.click()}
+                  className="rounded border bg-white px-3 py-1 font-bold"
+                >
+                  Replace image
+                </button>
+                <button
+                  type="button"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={removeSelectedBodyImage}
+                  className="rounded border border-red-300 bg-white px-3 py-1 font-bold text-red-700"
+                >
+                  Remove image
+                </button>
+                <input
+                  ref={replaceBodyImageInputRef}
+                  type="file"
+                  accept={ACCEPTED_IMAGE_TYPES.join(",")}
+                  className="hidden"
+                  onChange={handleReplaceBodyImage}
+                />
                 {pasting ? <span className="px-2 py-1 text-sm font-bold text-lime-700">Processing Word paste...</span> : null}
               </div>
               <div
@@ -849,6 +975,7 @@ export default function ArticleEditor({ initialArticle }: { initialArticle?: Art
                 style={{ direction: "ltr", textAlign: "left", unicodeBidi: "isolate" }}
                 dangerouslySetInnerHTML={{ __html: form.contentHtml }}
                 onPaste={handleRichPaste}
+                onClick={handleEditorClick}
                 onKeyUp={rememberSelection}
                 onMouseUp={rememberSelection}
                 onFocus={rememberSelection}
