@@ -7,6 +7,11 @@ type CalendarArticle = {
   publishedAt: Date | null;
 };
 
+type PublishingCalendarProps = {
+  articles: CalendarArticle[];
+  storedPackageSlugs: string[];
+};
+
 function dateAtNoon(dateString: string) {
   return new Date(`${dateString}T12:00:00-06:00`);
 }
@@ -33,10 +38,11 @@ function formatCentralDateTime(date: Date) {
   }).format(date);
 }
 
-export default function PublishingCalendar({ articles }: { articles: CalendarArticle[] }) {
+export default function PublishingCalendar({ articles, storedPackageSlugs }: PublishingCalendarProps) {
   const articleBySlug = new Map(
     articles.filter((article) => article.slug).map((article) => [article.slug as string, article]),
   );
+  const storedPackageSet = new Set(storedPackageSlugs);
   const now = new Date();
 
   return (
@@ -45,7 +51,7 @@ export default function PublishingCalendar({ articles }: { articles: CalendarArt
         <p className="text-sm font-bold uppercase tracking-widest text-lime-400">Publishing calendar</p>
         <h2 className="mt-1 text-2xl font-black">12-week article plan</h2>
         <p className="mt-2 text-sm text-slate-300">
-          Prepared article packages open automatically from the calendar. Planned topics without a package remain available for manual creation.
+          Upload prepared packages once, then open them directly from the calendar for image selection and draft creation.
         </p>
       </div>
 
@@ -53,13 +59,19 @@ export default function PublishingCalendar({ articles }: { articles: CalendarArt
         {editorialCalendar.map((item) => {
           const article = articleBySlug.get(item.slug);
           const publishedAt = article?.publishedAt ?? null;
-          const state = !article
-            ? "Planned"
-            : !publishedAt
+          const hasStoredPackage = storedPackageSet.has(item.slug);
+          const hasSourcePackage = Boolean(item.packageId);
+          const hasPreparedPackage = hasStoredPackage || hasSourcePackage;
+
+          const state = article
+            ? !publishedAt
               ? "Draft"
               : publishedAt > now
                 ? "Scheduled"
-                : "Published";
+                : "Published"
+            : hasPreparedPackage
+              ? "Package Ready"
+              : "Planned";
 
           const badgeClass =
             state === "Published"
@@ -68,11 +80,11 @@ export default function PublishingCalendar({ articles }: { articles: CalendarArt
                 ? "bg-blue-100 text-blue-800"
                 : state === "Draft"
                   ? "bg-amber-100 text-amber-800"
-                  : "bg-slate-200 text-slate-700";
+                  : state === "Package Ready"
+                    ? "bg-violet-100 text-violet-800"
+                    : "bg-slate-200 text-slate-700";
 
-          const plannedHref = item.packageId
-            ? `/admin/articles/new?plan=${encodeURIComponent(item.packageId)}`
-            : "/admin/articles/new";
+          const preparePlan = hasStoredPackage ? item.slug : item.packageId;
 
           return (
             <div key={item.slug} className="grid gap-4 px-6 py-5 md:grid-cols-[170px_1fr_auto] md:items-center">
@@ -89,10 +101,12 @@ export default function PublishingCalendar({ articles }: { articles: CalendarArt
                   </p>
                 ) : article ? (
                   <p className="mt-1 text-sm text-slate-500">Draft exists in Article Editor</p>
-                ) : item.packageId ? (
-                  <p className="mt-1 text-sm text-slate-500">Prepared article package available</p>
+                ) : hasStoredPackage ? (
+                  <p className="mt-1 text-sm text-slate-500">Prepared package stored in the database</p>
+                ) : hasSourcePackage ? (
+                  <p className="mt-1 text-sm text-slate-500">Prepared source package available</p>
                 ) : (
-                  <p className="mt-1 text-sm text-slate-500">Not created yet</p>
+                  <p className="mt-1 text-sm text-slate-500">No prepared package stored yet</p>
                 )}
               </div>
 
@@ -100,6 +114,7 @@ export default function PublishingCalendar({ articles }: { articles: CalendarArt
                 <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${badgeClass}`}>
                   {state}
                 </span>
+
                 {article ? (
                   <Link
                     href={`/admin/articles/${encodeURIComponent(article.externalId)}`}
@@ -107,14 +122,19 @@ export default function PublishingCalendar({ articles }: { articles: CalendarArt
                   >
                     {state === "Scheduled" ? "Edit / Reschedule" : "Edit"}
                   </Link>
+                ) : hasPreparedPackage && preparePlan ? (
+                  <Link
+                    href={`/admin/articles/new?plan=${encodeURIComponent(preparePlan)}`}
+                    className="rounded-lg bg-lime-400 px-4 py-2 text-sm font-black text-slate-950 hover:bg-lime-300"
+                  >
+                    Prepare Article
+                  </Link>
                 ) : (
                   <Link
-                    href={plannedHref}
-                    className={item.packageId
-                      ? "rounded-lg bg-lime-400 px-4 py-2 text-sm font-black text-slate-950 hover:bg-lime-300"
-                      : "rounded-lg bg-slate-950 px-4 py-2 text-sm font-bold text-white hover:bg-lime-500 hover:text-slate-950"}
+                    href={`/admin/article-packages/${encodeURIComponent(item.slug)}`}
+                    className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-bold text-white hover:bg-lime-500 hover:text-slate-950"
                   >
-                    {item.packageId ? "Prepare Article" : "Create"}
+                    Add Package
                   </Link>
                 )}
               </div>
