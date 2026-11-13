@@ -2,34 +2,7 @@
 
 import { ChangeEvent, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-
-export type ArticleImagePlan = {
-  id: string;
-  kind: "featured" | "body";
-  recommendation: string;
-  location?: string;
-  width?: 33 | 50 | 75 | 100;
-  altText?: string;
-  required?: boolean;
-  generationPrompt?: string;
-  useQcToteReference?: boolean;
-};
-
-export type ArticlePackage = {
-  version?: number;
-  title: string;
-  slug?: string;
-  subtitle?: string;
-  category?: string;
-  authorName?: string;
-  imageUrl?: string;
-  readTime?: string;
-  metaTitle?: string;
-  metaDescription?: string;
-  contentHtml: string;
-  includeTableOfContents?: boolean;
-  images?: ArticleImagePlan[];
-};
+import type { ArticleImagePlan, ArticlePackage } from "@/lib/articlePackageContract";
 
 type SelectedImages = Record<string, File | undefined>;
 
@@ -77,7 +50,7 @@ function addTableOfContents(html: string) {
 function validatePackage(value: unknown): ArticlePackage {
   if (!value || typeof value !== "object") throw new Error("The selected file is not a valid article package.");
   const article = value as Partial<ArticlePackage>;
-  if (article.version != null && ![1, 2].includes(article.version)) throw new Error("This article package version is not supported.");
+  if (article.version != null && ![1, 2, 3].includes(article.version)) throw new Error("This article package version is not supported.");
   if (!article.title?.trim()) throw new Error("The article package is missing a title.");
   if (!article.contentHtml?.trim()) throw new Error("The article package is missing article content.");
   const imageIds = new Set<string>();
@@ -228,7 +201,7 @@ export default function ArticlePackageImporter({ initialPackage = null, packageN
                         <div className="max-w-2xl">
                           <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{index + 1}. {image.kind === "featured" ? "Featured image" : "Body image"}{image.required ? " - Required" : " - Optional"}</p>
                           <p className="mt-2 font-bold text-slate-950">{image.recommendation}</p>
-                          {image.location ? <p className="mt-2 text-sm text-slate-600"><strong>Location:</strong> {image.location}</p> : null}
+                          {image.location ? <p className="mt-2 text-sm text-slate-600"><strong>Location:</strong> {typeof image.location === "string" ? image.location : image.location.afterHeading ?? image.location.beforeHeading ?? "Planned article location"}</p> : null}
                           {image.kind === "body" ? <p className="mt-1 text-sm text-slate-600"><strong>Suggested width:</strong> {image.width ?? 75}%</p> : null}
                           {image.altText ? <p className="mt-1 text-sm text-slate-600"><strong>Alt text:</strong> {image.altText}</p> : null}
                           {image.generationPrompt ? (

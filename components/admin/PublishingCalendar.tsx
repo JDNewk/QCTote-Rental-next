@@ -44,7 +44,9 @@ export default function PublishingCalendar({ articles }: { articles: CalendarArt
       <div className="border-b border-slate-200 bg-slate-950 px-6 py-5 text-white">
         <p className="text-sm font-bold uppercase tracking-widest text-lime-400">Publishing calendar</p>
         <h2 className="mt-1 text-2xl font-black">12-week article plan</h2>
-        <p className="mt-2 text-sm text-slate-300">Prepared packages open directly from the calendar. Other planned topics continue to open the manual New Article page.</p>
+        <p className="mt-2 text-sm text-slate-300">
+          Prepared article packages open automatically from the calendar. Planned topics without a package remain available for manual creation.
+        </p>
       </div>
 
       <div className="divide-y divide-slate-200">
@@ -68,7 +70,7 @@ export default function PublishingCalendar({ articles }: { articles: CalendarArt
                   ? "bg-amber-100 text-amber-800"
                   : "bg-slate-200 text-slate-700";
 
-          const createHref = item.packageId
+          const plannedHref = item.packageId
             ? `/admin/articles/new?plan=${encodeURIComponent(item.packageId)}`
             : "/admin/articles/new";
 
@@ -88,7 +90,7 @@ export default function PublishingCalendar({ articles }: { articles: CalendarArt
                 ) : article ? (
                   <p className="mt-1 text-sm text-slate-500">Draft exists in Article Editor</p>
                 ) : item.packageId ? (
-                  <p className="mt-1 text-sm font-semibold text-lime-700">Prepared article package available</p>
+                  <p className="mt-1 text-sm text-slate-500">Prepared article package available</p>
                 ) : (
                   <p className="mt-1 text-sm text-slate-500">Not created yet</p>
                 )}
@@ -99,11 +101,19 @@ export default function PublishingCalendar({ articles }: { articles: CalendarArt
                   {state}
                 </span>
                 {article ? (
-                  <Link href={`/admin/articles/${encodeURIComponent(article.externalId)}`} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 hover:border-lime-500">
+                  <Link
+                    href={`/admin/articles/${encodeURIComponent(article.externalId)}`}
+                    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 hover:border-lime-500"
+                  >
                     {state === "Scheduled" ? "Edit / Reschedule" : "Edit"}
                   </Link>
                 ) : (
-                  <Link href={createHref} className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-bold text-white hover:bg-lime-500 hover:text-slate-950">
+                  <Link
+                    href={plannedHref}
+                    className={item.packageId
+                      ? "rounded-lg bg-lime-400 px-4 py-2 text-sm font-black text-slate-950 hover:bg-lime-300"
+                      : "rounded-lg bg-slate-950 px-4 py-2 text-sm font-bold text-white hover:bg-lime-500 hover:text-slate-950"}
+                  >
                     {item.packageId ? "Prepare Article" : "Create"}
                   </Link>
                 )}

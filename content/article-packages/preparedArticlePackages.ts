@@ -1,32 +1,38 @@
-export type PreparedArticleImagePlan = {
-  id: string;
-  kind: "featured" | "body";
-  recommendation: string;
-  location?: string;
-  width?: 33 | 50 | 75 | 100;
-  altText?: string;
-  required?: boolean;
-  generationPrompt?: string;
-  useQcToteReference?: boolean;
-};
+import type { ArticlePackage, ArticleImagePlan } from "@/lib/articlePackageContract";
 
-export type PreparedArticlePackage = {
-  version: 2;
-  title: string;
-  slug: string;
-  subtitle?: string;
-  category?: string;
-  authorName?: string;
-  imageUrl?: string;
-  readTime?: string;
-  metaTitle?: string;
-  metaDescription?: string;
-  contentHtml: string;
-  includeTableOfContents?: boolean;
-  images?: PreparedArticleImagePlan[];
-};
+const booksImages: ArticleImagePlan[] = [
+  {
+    id: "featured-books",
+    kind: "featured",
+    required: true,
+    recommendation: "Books being packed for a residential move beside a reusable heavy-duty moving tote.",
+    altText: "Books being packed beside a reusable moving tote",
+    useQcToteReference: true,
+    generationPrompt: "Realistic residential moving scene with books being packed beside a heavy-duty reusable 27-gallon plastic moving tote modeled on the proportions and construction style of a Home Depot HDX 27-gallon tote. Black tote body with bright lime-green lid, sturdy rectangular stackable proportions, molded handles, practical home environment, natural light, no visible text, numbers, logos, labels, Home Depot branding, HDX branding, or manufacturer branding.",
+  },
+  {
+    id: "balanced-book-load",
+    kind: "body",
+    location: "After Don't Fill a Large Container Entirely With Books",
+    width: 50,
+    altText: "Books packed with lighter belongings to keep a moving tote manageable",
+    recommendation: "A partially packed tote containing several books plus lightweight folded linens to show sensible weight distribution.",
+    useQcToteReference: true,
+    generationPrompt: "Open heavy-duty reusable 27-gallon plastic moving tote containing a reasonable quantity of hardcover and paperback books together with lightweight folded linens, demonstrating sensible weight distribution rather than filling the entire tote with books. Black tote body with bright lime-green lid nearby, realistic residential packing environment, no text, numbers, logos, labels, Home Depot branding, HDX branding, or manufacturer branding.",
+  },
+  {
+    id: "labeled-book-containers",
+    kind: "body",
+    location: "After Label Book Containers Clearly",
+    width: 50,
+    altText: "Moving totes organized by room and contents",
+    recommendation: "Several reusable moving totes neatly organized by room during a residential move.",
+    useQcToteReference: true,
+    generationPrompt: "Several heavy-duty reusable 27-gallon moving totes neatly organized during a residential move, black tote bodies with bright lime-green lids, visual grouping by room without readable labels or text, realistic home environment, no logos, brand marks, numbers, Home Depot branding, HDX branding, or manufacturer branding.",
+  },
+];
 
-const booksArticle: PreparedArticlePackage = {
+const booksArticle: ArticlePackage = {
   version: 2,
   title: "How to Pack Books for Moving Without Making Boxes Too Heavy",
   slug: "how-to-pack-books-for-moving",
@@ -37,37 +43,7 @@ const booksArticle: PreparedArticlePackage = {
   metaTitle: "How to Pack Books for Moving Without Heavy Boxes",
   metaDescription: "Learn how to pack books for moving without creating boxes that are too heavy to carry. Get practical tips for sorting, packing, labeling and moving books.",
   includeTableOfContents: true,
-  images: [
-    {
-      id: "featured-books",
-      kind: "featured",
-      required: true,
-      recommendation: "Books being packed for a residential move beside a reusable heavy-duty moving tote.",
-      altText: "Books being packed beside a reusable moving tote",
-      useQcToteReference: true,
-      generationPrompt: "Realistic residential moving scene with books being packed beside a heavy-duty reusable 27-gallon plastic moving tote modeled on the proportions and construction style of a Home Depot HDX 27-gallon tote. Black tote body with bright lime-green lid, sturdy rectangular stackable proportions, molded handles, practical home environment, natural light, no visible text, numbers, logos, labels, Home Depot branding, HDX branding, or manufacturer branding.",
-    },
-    {
-      id: "balanced-book-load",
-      kind: "body",
-      location: "After Don't Fill a Large Container Entirely With Books",
-      width: 50,
-      altText: "Books packed with lighter belongings to keep a moving tote manageable",
-      recommendation: "A partially packed tote containing several books plus lightweight folded linens to show sensible weight distribution.",
-      useQcToteReference: true,
-      generationPrompt: "Open heavy-duty reusable 27-gallon plastic moving tote containing a reasonable quantity of hardcover and paperback books together with lightweight folded linens, demonstrating sensible weight distribution rather than filling the entire tote with books. Black tote body with bright lime-green lid nearby, realistic residential packing environment, no text, numbers, logos, labels, Home Depot branding, HDX branding, or manufacturer branding.",
-    },
-    {
-      id: "labeled-book-containers",
-      kind: "body",
-      location: "After Label Book Containers Clearly",
-      width: 50,
-      altText: "Moving totes organized by room and contents",
-      recommendation: "Several reusable moving totes neatly organized by room during a residential move.",
-      useQcToteReference: true,
-      generationPrompt: "Several heavy-duty reusable 27-gallon moving totes neatly organized during a residential move, black tote bodies with bright lime-green lids, visual grouping by room without readable labels or text, realistic home environment, no logos, brand marks, numbers, Home Depot branding, HDX branding, or manufacturer branding.",
-    },
-  ],
+  images: booksImages,
   contentHtml: `
 <p>Books do not look like one of the hardest things to pack until you fill an entire moving box with them and try to pick it up.</p>
 <p>A single book may not weigh much, but a shelf's worth packed into one container can quickly become difficult to carry. Books can also be damaged during a move if they are packed loosely, overloaded, or exposed to moisture.</p>
@@ -120,7 +96,7 @@ const booksArticle: PreparedArticlePackage = {
 `,
 };
 
-const packages: Record<string, PreparedArticlePackage> = {
+const packages: Record<string, ArticlePackage> = {
   "nov-13-how-to-pack-books": booksArticle,
 };
 
