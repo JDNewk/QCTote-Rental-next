@@ -33,3 +33,14 @@ model Article {
   @@index([publishedAt])
   @@map("articles")
 }
+
+model PreparedArticlePackage {
+  id          String   @id @default(cuid())
+  planSlug    String   @unique @map("plan_slug")
+  title       String
+  packageJson Json     @map("package_json")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("prepared_article_packages")
+}
