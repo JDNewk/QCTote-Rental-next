@@ -2,8 +2,9 @@ import Link from "next/link";
 import ArticleEditor from "@/components/admin/ArticleEditor";
 import ArticlePackageImporter from "@/components/admin/ArticlePackageImporter";
 import { editorialCalendar } from "@/config/editorialCalendar";
-import { requireAdmin } from "@/lib/adminAuth";
 import { getPreparedArticlePackage } from "@/content/article-packages/preparedArticlePackages";
+import { requireAdmin } from "@/lib/adminAuth";
+import { getStoredPreparedArticlePackage } from "@/lib/preparedArticlePackageStore";
 
 export const instant = false;
 
@@ -20,15 +21,25 @@ export default async function NewArticlePage({ searchParams }: NewArticlePagePro
     ? editorialCalendar.find((item) => item.packageId === plan || item.slug === plan)
     : undefined;
 
-  const packageId = calendarItem?.packageId ?? plan;
-  const preparedPackage = getPreparedArticlePackage(packageId);
+  const storedPackage = calendarItem
+    ? await getStoredPreparedArticlePackage(calendarItem.slug)
+    : null;
+
+  const sourcePackageId = calendarItem?.packageId ?? plan;
+  const sourcePackage = storedPackage ? null : getPreparedArticlePackage(sourcePackageId);
+  const preparedPackage = storedPackage ?? sourcePackage;
+  const packageName = storedPackage
+    ? `${calendarItem?.slug ?? plan}-stored.json`
+    : sourcePackageId
+      ? `${sourcePackageId}.json`
+      : undefined;
 
   const fallbackArticle = calendarItem && !preparedPackage
     ? {
         title: calendarItem.title,
         slug: calendarItem.slug,
         subtitle: "",
-        category: calendarItem.intent === "Seasonal / local" ? "Moving Tips" : "Moving Tips",
+        category: "Moving Tips",
         authorName: "QC Tote Rental Editorial Team",
         imageUrl: "",
         readTime: "",
@@ -50,13 +61,13 @@ export default async function NewArticlePage({ searchParams }: NewArticlePagePro
           {preparedPackage ? (
             <ArticlePackageImporter
               initialPackage={preparedPackage}
-              packageName={`${packageId}.json`}
+              packageName={packageName}
             />
           ) : (
             <>
               {calendarItem ? (
                 <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                  A full prepared package is not available for this calendar topic yet. The planned title and slug are prefilled below.
+                  A prepared package is not stored for this calendar topic yet. You can add one from the Publishing Calendar, or use the planned title and slug below.
                 </div>
               ) : null}
               <ArticlePackageImporter />
