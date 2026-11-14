@@ -43,20 +43,12 @@ export type ArticleImagePlan = {
   id: string;
   kind: "featured" | "body";
   recommendation: string;
-
-  // Version 1/2 packages used a human-readable location string.
-  // Version 3 may use a structured location for generated packages.
   location?: string | ArticleImageLocation;
-
   width?: 33 | 50 | 75 | 100;
   altText?: string;
   required?: boolean;
   generationPrompt?: string;
-
-  // Legacy/version 2 name retained for compatibility.
   useQcToteReference?: boolean;
-
-  // Version 3 generator-facing name.
   useQcToteVisualStandard?: boolean;
 };
 
@@ -136,4 +128,12 @@ When depicting QC Tote Rental totes, use a heavy-duty 27-gallon stackable plasti
 Use sturdy rectangular proportions, reinforced molded construction, molded handles, and a stackable lid. Use QC Tote Rental's black and bright lime-green visual direction when appropriate.
 
 Do not include Home Depot, HDX, manufacturer logos, branding, labels, text, or numbers on the tote.
+`.trim();
+
+export const COPILOT_IMAGE_OUTPUT_STANDARD = `
+Use a polished, photorealistic style with a natural residential moving environment unless the image request specifically calls for another style.
+
+Do not include visible text, numbers, logos, brand names, watermarks, or manufacturer markings unless the image request specifically requires them.
+
+Keep the primary subject visually clear and avoid large areas of unused empty space.
 `.trim();

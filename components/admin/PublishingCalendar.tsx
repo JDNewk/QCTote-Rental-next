@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { editorialCalendar } from "@/config/editorialCalendar";
+import CalendarPackageActions from "@/components/admin/CalendarPackageActions";
 
 type CalendarArticle = {
   externalId: string;
@@ -51,7 +52,7 @@ export default function PublishingCalendar({ articles, storedPackageSlugs }: Pub
         <p className="text-sm font-bold uppercase tracking-widest text-lime-400">Publishing calendar</p>
         <h2 className="mt-1 text-2xl font-black">12-week article plan</h2>
         <p className="mt-2 text-sm text-slate-300">
-          Upload prepared packages once, then open them directly from the calendar for image selection and draft creation.
+          Add, validate, replace, and prepare article packages directly from the publishing calendar.
         </p>
       </div>
 
@@ -84,10 +85,8 @@ export default function PublishingCalendar({ articles, storedPackageSlugs }: Pub
                     ? "bg-violet-100 text-violet-800"
                     : "bg-slate-200 text-slate-700";
 
-          const preparePlan = hasStoredPackage ? item.slug : item.packageId;
-
           return (
-            <div key={item.slug} className="grid gap-4 px-6 py-5 md:grid-cols-[170px_1fr_auto] md:items-center">
+            <div key={item.slug} className="grid gap-4 px-6 py-5 md:grid-cols-[170px_1fr_minmax(260px,auto)] md:items-start">
               <div>
                 <p className="font-black text-slate-950">{formatDate(item.publishDate)}</p>
                 <p className="mt-1 text-xs font-bold uppercase tracking-wide text-slate-500">{item.intent}</p>
@@ -110,32 +109,26 @@ export default function PublishingCalendar({ articles, storedPackageSlugs }: Pub
                 )}
               </div>
 
-              <div className="flex flex-wrap items-center gap-3 md:justify-end">
-                <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${badgeClass}`}>
+              <div className="flex flex-col items-stretch gap-3 md:items-end">
+                <span className={`self-start rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide md:self-end ${badgeClass}`}>
                   {state}
                 </span>
 
                 {article ? (
                   <Link
                     href={`/admin/articles/${encodeURIComponent(article.externalId)}`}
-                    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 hover:border-lime-500"
+                    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-center text-sm font-bold text-slate-800 hover:border-lime-500"
                   >
                     {state === "Scheduled" ? "Edit / Reschedule" : "Edit"}
                   </Link>
-                ) : hasPreparedPackage && preparePlan ? (
-                  <Link
-                    href={`/admin/articles/new?plan=${encodeURIComponent(preparePlan)}`}
-                    className="rounded-lg bg-lime-400 px-4 py-2 text-sm font-black text-slate-950 hover:bg-lime-300"
-                  >
-                    Prepare Article
-                  </Link>
                 ) : (
-                  <Link
-                    href={`/admin/article-packages/${encodeURIComponent(item.slug)}`}
-                    className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-bold text-white hover:bg-lime-500 hover:text-slate-950"
-                  >
-                    Add Package
-                  </Link>
+                  <CalendarPackageActions
+                    planSlug={item.slug}
+                    planTitle={item.title}
+                    hasStoredPackage={hasStoredPackage}
+                    hasSourcePackage={hasSourcePackage}
+                    sourcePackageId={item.packageId}
+                  />
                 )}
               </div>
             </div>
