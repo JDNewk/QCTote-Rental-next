@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { editorialCalendar } from "@/config/editorialCalendar";
 import CalendarPackageActions from "@/components/admin/CalendarPackageActions";
+import CopyPackageRequestButton from "@/components/admin/CopyPackageRequestButton";
+import { buildArticlePackageRequest } from "@/lib/articlePackagePrompt";
 
 type CalendarArticle = {
   externalId: string;
@@ -8,9 +10,15 @@ type CalendarArticle = {
   publishedAt: Date | null;
 };
 
+type PublishedArticleReference = {
+  title: string;
+  slug: string;
+};
+
 type PublishingCalendarProps = {
   articles: CalendarArticle[];
   storedPackageSlugs: string[];
+  publishedArticles: PublishedArticleReference[];
 };
 
 function dateAtNoon(dateString: string) {
@@ -39,9 +47,15 @@ function formatCentralDateTime(date: Date) {
   }).format(date);
 }
 
-export default function PublishingCalendar({ articles, storedPackageSlugs }: PublishingCalendarProps) {
+export default function PublishingCalendar({
+  articles,
+  storedPackageSlugs,
+  publishedArticles,
+}: PublishingCalendarProps) {
   const articleBySlug = new Map(
-    articles.filter((article) => article.slug).map((article) => [article.slug as string, article]),
+    articles
+      .filter((article) => article.slug)
+      .map((article) => [article.slug as string, article]),
   );
   const storedPackageSet = new Set(storedPackageSlugs);
   const now = new Date();
@@ -49,10 +63,12 @@ export default function PublishingCalendar({ articles, storedPackageSlugs }: Pub
   return (
     <section className="mt-10 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="border-b border-slate-200 bg-slate-950 px-6 py-5 text-white">
-        <p className="text-sm font-bold uppercase tracking-widest text-lime-400">Publishing calendar</p>
+        <p className="text-sm font-bold uppercase tracking-widest text-lime-400">
+          Publishing calendar
+        </p>
         <h2 className="mt-1 text-2xl font-black">12-week article plan</h2>
         <p className="mt-2 text-sm text-slate-300">
-          Add, validate, replace, and prepare article packages directly from the publishing calendar.
+          Copy a complete package request for Copilot, then add, validate, replace, and prepare article packages directly from the calendar.
         </p>
       </div>
 
@@ -85,32 +101,60 @@ export default function PublishingCalendar({ articles, storedPackageSlugs }: Pub
                     ? "bg-violet-100 text-violet-800"
                     : "bg-slate-200 text-slate-700";
 
+          const packageRequest = !article
+            ? buildArticlePackageRequest({
+                calendarItem: {
+                  publishDate: item.publishDate,
+                  title: item.title,
+                  slug: item.slug,
+                  intent: item.intent,
+                },
+                publishedArticles,
+              })
+            : null;
+
           return (
-            <div key={item.slug} className="grid gap-4 px-6 py-5 md:grid-cols-[170px_1fr_minmax(260px,auto)] md:items-start">
+            <div
+              key={item.slug}
+              className="grid gap-4 px-6 py-5 md:grid-cols-[170px_1fr_minmax(280px,auto)] md:items-start"
+            >
               <div>
                 <p className="font-black text-slate-950">{formatDate(item.publishDate)}</p>
-                <p className="mt-1 text-xs font-bold uppercase tracking-wide text-slate-500">{item.intent}</p>
+                <p className="mt-1 text-xs font-bold uppercase tracking-wide text-slate-500">
+                  {item.intent}
+                </p>
               </div>
 
               <div className="min-w-0">
                 <p className="font-bold text-slate-950">{item.title}</p>
                 {publishedAt ? (
                   <p className="mt-1 text-sm text-slate-500">
-                    {state === "Scheduled" ? "Scheduled for" : "Published"} {formatCentralDateTime(publishedAt)}
+                    {state === "Scheduled" ? "Scheduled for" : "Published"}{" "}
+                    {formatCentralDateTime(publishedAt)}
                   </p>
                 ) : article ? (
-                  <p className="mt-1 text-sm text-slate-500">Draft exists in Article Editor</p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Draft exists in Article Editor
+                  </p>
                 ) : hasStoredPackage ? (
-                  <p className="mt-1 text-sm text-slate-500">Prepared package stored in the database</p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Prepared package stored in the database
+                  </p>
                 ) : hasSourcePackage ? (
-                  <p className="mt-1 text-sm text-slate-500">Prepared source package available</p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Prepared source package available
+                  </p>
                 ) : (
-                  <p className="mt-1 text-sm text-slate-500">No prepared package stored yet</p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    No prepared package stored yet
+                  </p>
                 )}
               </div>
 
               <div className="flex flex-col items-stretch gap-3 md:items-end">
-                <span className={`self-start rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide md:self-end ${badgeClass}`}>
+                <span
+                  className={`self-start rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide md:self-end ${badgeClass}`}
+                >
                   {state}
                 </span>
 
@@ -122,13 +166,20 @@ export default function PublishingCalendar({ articles, storedPackageSlugs }: Pub
                     {state === "Scheduled" ? "Edit / Reschedule" : "Edit"}
                   </Link>
                 ) : (
-                  <CalendarPackageActions
-                    planSlug={item.slug}
-                    planTitle={item.title}
-                    hasStoredPackage={hasStoredPackage}
-                    hasSourcePackage={hasSourcePackage}
-                    sourcePackageId={item.packageId}
-                  />
+                  <div className="w-full space-y-3">
+                    {packageRequest ? (
+                      <div className="flex md:justify-end">
+                        <CopyPackageRequestButton request={packageRequest} />
+                      </div>
+                    ) : null}
+                    <CalendarPackageActions
+                      planSlug={item.slug}
+                      planTitle={item.title}
+                      hasStoredPackage={hasStoredPackage}
+                      hasSourcePackage={hasSourcePackage}
+                      sourcePackageId={item.packageId}
+                    />
+                  </div>
                 )}
               </div>
             </div>

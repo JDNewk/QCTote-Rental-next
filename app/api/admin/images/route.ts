@@ -12,6 +12,18 @@ const ALLOWED_TYPES = new Map([
   ["image/gif", "gif"],
 ]);
 
+function safeFileStem(fileName: string) {
+  const withoutExtension = fileName.replace(/\.[^.]+$/, "");
+  return (
+    withoutExtension
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 140) || "article-image"
+  );
+}
+
 export async function POST(request: Request) {
   if (!(await isAdmin())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -45,7 +57,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "The image must be 8 MB or smaller." }, { status: 413 });
     }
 
-    const key = `${randomUUID()}.${extension}`;
+    const stem = safeFileStem(file.name);
+    const key = `${stem}--${randomUUID().slice(0, 8)}.${extension}`;
     const store = getStore({ name: STORE_NAME, consistency: "strong" });
 
     await store.set(key, file, {
@@ -62,7 +75,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true, key, url }, { status: 201 });
   } catch (error) {
-    console.error("Featured image upload failed:", error);
+    console.error("Article image upload failed:", error);
     return NextResponse.json({ error: "The image could not be uploaded." }, { status: 500 });
   }
 }

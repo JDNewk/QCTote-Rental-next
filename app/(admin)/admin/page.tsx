@@ -8,6 +8,7 @@ export const instant = false;
 type PrismaClient = ReturnType<typeof getPrisma>;
 type AdminArticle = Awaited<ReturnType<PrismaClient["article"]["findMany"]>>[number];
 type PreparedPackageSlugRow = { planSlug: string };
+type PublishedArticleLinkRow = { title: string | null; slug: string | null };
 
 function formatCentralDateTime(date: Date) {
   return new Intl.DateTimeFormat("en-US", {
@@ -25,7 +26,8 @@ export default async function AdminPage() {
   await requireAdmin();
 
   const prisma = getPrisma();
-  const [articlesResult, preparedPackagesResult] = await Promise.all([
+  const now = new Date();
+  const [articlesResult, preparedPackagesResult, publishedArticlesResult] = await Promise.all([
     prisma.article.findMany({
       orderBy: [
         { publishedAt: { sort: "desc", nulls: "last" } },
@@ -35,6 +37,14 @@ export default async function AdminPage() {
     prisma.preparedArticlePackage.findMany({
       select: { planSlug: true },
     }),
+    prisma.article.findMany({
+      where: {
+        slug: { not: null },
+        publishedAt: { not: null, lte: now },
+      },
+      select: { title: true, slug: true },
+      orderBy: { publishedAt: "desc" },
+    }),
   ]);
 
   const articles: AdminArticle[] = articlesResult;
@@ -42,7 +52,12 @@ export default async function AdminPage() {
   const preparedPackageSlugs = preparedPackages.map(
     (item: PreparedPackageSlugRow) => item.planSlug,
   );
-  const now = new Date();
+  const publishedArticles = (publishedArticlesResult as PublishedArticleLinkRow[])
+    .filter(
+      (article: PublishedArticleLinkRow): article is { title: string; slug: string } =>
+        Boolean(article.title?.trim() && article.slug?.trim()),
+    )
+    .map((article) => ({ title: article.title, slug: article.slug }));
 
   return (
     <main className="min-h-screen bg-slate-100 px-6 py-12">
@@ -83,6 +98,7 @@ export default async function AdminPage() {
             publishedAt: article.publishedAt,
           }))}
           storedPackageSlugs={preparedPackageSlugs}
+          publishedArticles={publishedArticles}
         />
 
         <section className="mt-10">

@@ -3,11 +3,9 @@
 import {
   ChangeEvent,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
-import { useRouter } from "next/navigation";
 import {
   COPILOT_IMAGE_OUTPUT_STANDARD,
   QC_TOTE_VISUAL_STANDARD,
@@ -110,9 +108,28 @@ function validatePackage(value: unknown): ArticlePackage {
   return article as ArticlePackage;
 }
 
-async function uploadImage(file: File) {
+function fileExtension(file: File) {
+  const extension = file.name.split(".").pop()?.toLowerCase();
+  if (extension && /^[a-z0-9]+$/.test(extension)) return extension;
+  if (file.type === "image/jpeg") return "jpg";
+  if (file.type === "image/png") return "png";
+  if (file.type === "image/webp") return "webp";
+  if (file.type === "image/gif") return "gif";
+  return "img";
+}
+
+function renameImageForUpload(file: File, articleSlug: string, imageSlot: string) {
+  const date = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+  const safeSlug = slugify(articleSlug) || "article";
+  const safeSlot = slugify(imageSlot) || "image";
+  const name = `${safeSlug}--${safeSlot}--${date}.${fileExtension(file)}`;
+  return new File([file], name, { type: file.type, lastModified: file.lastModified });
+}
+
+async function uploadImage(file: File, articleSlug: string, imageSlot: string) {
+  const renamedFile = renameImageForUpload(file, articleSlug, imageSlot);
   const formData = new FormData();
-  formData.append("file", file);
+  formData.append("file", renamedFile);
 
   const response = await fetch("/api/admin/images", {
     method: "POST",
@@ -121,7 +138,7 @@ async function uploadImage(file: File) {
   const result = await response.json().catch(() => ({}));
 
   if (!response.ok || !result?.url) {
-    throw new Error(result?.error || `The image "${file.name}" could not be uploaded.`);
+    throw new Error(result?.error || `The image "${renamedFile.name}" could not be uploaded.`);
   }
 
   return String(result.url);
@@ -219,7 +236,6 @@ function SelectedImage({
 
     return () => {
       URL.revokeObjectURL(objectUrl);
-      setPreviewUrl("");
     };
   }, [file]);
 
@@ -273,9 +289,9 @@ export default function ArticlePackageImporter({
   initialPackage?: ArticlePackage | null;
   packageName?: string;
 }) {
-  const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const imageInputsRef = useRef<Record<string, HTMLInputElement | null>>({});
+  const submitLockRef = useRef(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null);
@@ -334,10 +350,11 @@ export default function ArticlePackageImporter({
   }
 
   async function createDraft() {
-    if (!articlePackage) return;
+    if (!articlePackage || submitLockRef.current) return;
 
+    submitLockRef.current = true;
     setBusy(true);
-    setMessage("");
+    setMessage("Creating draft and uploading selected images...");
 
     try {
       for (const image of articlePackage.images ?? []) {
@@ -348,15 +365,15 @@ export default function ArticlePackageImporter({
         }
       }
 
-      const uploadedUrls: Record<string, string> = {};
-      for (const image of articlePackage.images ?? []) {
-        const file = selectedImages[image.id];
-        if (file) uploadedUrls[image.id] = await uploadImage(file);
-      }
-
       const slug = slugify(articlePackage.slug?.trim() || articlePackage.title);
       if (!slug) {
         throw new Error("The article package could not create a valid slug.");
+      }
+
+      const uploadedUrls: Record<string, string> = {};
+      for (const image of articlePackage.images ?? []) {
+        const file = selectedImages[image.id];
+        if (file) uploadedUrls[image.id] = await uploadImage(file, slug, image.id);
       }
 
       const featuredPlan = (articlePackage.images ?? []).find(
@@ -403,16 +420,22 @@ export default function ArticlePackageImporter({
         );
       }
 
-      router.push(`/admin/articles/${encodeURIComponent(result.externalId)}`);
-      router.refresh();
+      setMessage(
+        result.existing
+          ? "An article with this slug already exists. Opening the existing article..."
+          : "Draft created. Opening the article editor...",
+      );
+      window.location.assign(
+        `/admin/articles/${encodeURIComponent(result.externalId)}`,
+      );
     } catch (error) {
+      submitLockRef.current = false;
+      setBusy(false);
       setMessage(
         error instanceof Error
           ? error.message
           : "The article package could not be imported.",
       );
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -585,7 +608,7 @@ export default function ArticlePackageImporter({
               type="button"
               onClick={() => void createDraft()}
               disabled={busy}
-              className="rounded-lg bg-lime-400 px-6 py-3 font-black text-slate-950 disabled:opacity-60"
+              className="rounded-lg bg-lime-400 px-6 py-3 font-black text-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {busy ? "Creating draft..." : "Create draft"}
             </button>
