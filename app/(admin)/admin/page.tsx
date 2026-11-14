@@ -7,9 +7,7 @@ export const instant = false;
 
 type PrismaClient = ReturnType<typeof getPrisma>;
 type AdminArticle = Awaited<ReturnType<PrismaClient["article"]["findMany"]>>[number];
-type PreparedPackageRow = Awaited<
-  ReturnType<PrismaClient["preparedArticlePackage"]["findMany"]>
->[number];
+type PreparedPackageSlugRow = { planSlug: string };
 
 function formatCentralDateTime(date: Date) {
   return new Intl.DateTimeFormat("en-US", {
@@ -40,9 +38,9 @@ export default async function AdminPage() {
   ]);
 
   const articles: AdminArticle[] = articlesResult;
-  const preparedPackages: PreparedPackageRow[] = preparedPackagesResult;
+  const preparedPackages: PreparedPackageSlugRow[] = preparedPackagesResult;
   const preparedPackageSlugs = preparedPackages.map(
-    (item: PreparedPackageRow) => item.planSlug,
+    (item: PreparedPackageSlugRow) => item.planSlug,
   );
   const now = new Date();
 

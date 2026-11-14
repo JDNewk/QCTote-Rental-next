@@ -20,10 +20,10 @@ type RouteContext = {
   params: Promise<{ plan: string }>;
 };
 
-type PrismaClient = ReturnType<typeof getPrisma>;
-type LinkArticleRow = Awaited<
-  ReturnType<PrismaClient["article"]["findMany"]>
->[number];
+type LinkArticleRow = {
+  slug: string | null;
+  publishedAt: Date | null;
+};
 
 type BlogLinkStatus = "published" | "draft" | "scheduled" | "not-found";
 
