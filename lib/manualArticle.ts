@@ -1,11 +1,13 @@
-import { Prisma } from "@/generated/prisma/client";
+import { Prisma, FacebookPostStatus } from "@/generated/prisma/client";
 import { siteUrl } from "@/config/siteMetadata";
 
 type Input = Record<string, unknown>;
-
-function optional(value: unknown) {
-  const result = String(value ?? "").trim();
-  return result || null;
+function optional(value: unknown) { const result = String(value ?? "").trim(); return result || null; }
+function boolean(value: unknown) { return value === true || value === "true"; }
+function currentStatus(value: unknown): FacebookPostStatus {
+  return Object.values(FacebookPostStatus).includes(value as FacebookPostStatus)
+    ? (value as FacebookPostStatus)
+    : FacebookPostStatus.NOT_REQUESTED;
 }
 
 export function validateArticleInput(input: Input) {
@@ -18,35 +20,37 @@ export function validateArticleInput(input: Input) {
   const publishedAt = input.publishedAt ? new Date(String(input.publishedAt)) : null;
   if (publishedAt && Number.isNaN(publishedAt.getTime())) throw new Error("The publication date is invalid.");
 
+  const facebookBlurb = optional(input.facebookBlurb);
+  const facebookPostingEnabled = boolean(input.facebookPostingEnabled);
+  if (facebookPostingEnabled && !facebookBlurb) throw new Error("Add a Facebook blurb before approving Facebook posting.");
+
+  const priorStatus = currentStatus(input.facebookPostStatus);
+  const facebookPostStatus = priorStatus === FacebookPostStatus.POSTED
+    ? FacebookPostStatus.POSTED
+    : facebookPostingEnabled && publishedAt
+      ? FacebookPostStatus.PENDING
+      : FacebookPostStatus.NOT_REQUESTED;
+
   return {
-    title,
-    slug,
-    contentHtml,
-    contentMarkdown: null,
-    subtitle: optional(input.subtitle),
-    category: optional(input.category),
+    title, slug, contentHtml, contentMarkdown: null,
+    subtitle: optional(input.subtitle), category: optional(input.category),
     authorName: optional(input.authorName) || "QC Tote Rental Editorial Team",
-    imageUrl: optional(input.imageUrl),
-    readTime: optional(input.readTime),
+    imageUrl: optional(input.imageUrl), readTime: optional(input.readTime),
     metaTitle: optional(input.metaTitle) || title,
     metaDescription: optional(input.metaDescription) || optional(input.subtitle),
-    publishedAt,
-    updatedAt: new Date(),
+    publishedAt, updatedAt: new Date(), facebookBlurb, facebookPostingEnabled,
+    facebookPostStatus,
   };
 }
 
 export function articleJsonLd(article: ReturnType<typeof validateArticleInput>): Prisma.InputJsonValue {
   const url = `${siteUrl}/blog/${article.slug}`;
   return {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    headline: article.title,
-    description: article.metaDescription ?? undefined,
-    url,
+    "@context": "https://schema.org", "@type": "Article", headline: article.title,
+    description: article.metaDescription ?? undefined, url,
     mainEntityOfPage: { "@type": "WebPage", "@id": url },
     image: article.imageUrl ? [article.imageUrl] : undefined,
-    datePublished: article.publishedAt?.toISOString(),
-    dateModified: article.updatedAt.toISOString(),
+    datePublished: article.publishedAt?.toISOString(), dateModified: article.updatedAt.toISOString(),
     author: { "@type": "Organization", name: article.authorName, url: siteUrl },
     publisher: { "@type": "Organization", name: "QC Tote Rental", url: siteUrl },
   } as Prisma.InputJsonValue;
