@@ -1,4 +1,3 @@
-import "server-only";
 
 import { FacebookPostStatus } from "@/generated/prisma/client";
 import { siteUrl } from "@/config/siteMetadata";
