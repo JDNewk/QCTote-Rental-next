@@ -3,11 +3,7 @@
 
 $ErrorActionPreference = "Stop"
 
-$ProjectRoot = (Get-Location).Path
-while ($ProjectRoot.EndsWith("\") -or $ProjectRoot.EndsWith("/")) {
-    $ProjectRoot = $ProjectRoot.Substring(0, $ProjectRoot.Length - 1)
-}
-
+$ProjectRoot = (Get-Location).Path.TrimEnd('\', '/')
 $OutputFile = Join-Path $ProjectRoot "QCToteRental_CODE_SNAPSHOT.md"
 
 $ExcludedDirectories = @(
@@ -28,31 +24,26 @@ $ExcludedFileNames = @(
 
 $AllowedExtensions = @(
     ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs",
-    ".json", ".css", ".scss", ".md", ".prisma",
+    ".json", ".css", ".scss", ".md", ".prisma", ".sql",
     ".yml", ".yaml", ".toml", ".txt", ".ps1"
 )
 
 function Get-RelativeProjectPath {
     param([string]$FullName)
 
-    $rootWithSeparator = $ProjectRoot + [System.IO.Path]::DirectorySeparatorChar
-    if ($FullName.StartsWith($rootWithSeparator, [System.StringComparison]::OrdinalIgnoreCase)) {
-        return $FullName.Substring($rootWithSeparator.Length).Replace("\", "/")
-    }
-
-    return [System.IO.Path]::GetFileName($FullName)
+    $relative = $FullName.Substring($ProjectRoot.Length).TrimStart('\', '/')
+    return $relative.Replace('\', '/')
 }
 
 function Test-IsExcludedPath {
     param([string]$RelativePath)
 
-    $segments = $RelativePath -split "/"
-    foreach ($directory in $ExcludedDirectories) {
-        if ($segments -contains $directory) {
+    $segments = $RelativePath -split '/'
+    foreach ($segment in $segments) {
+        if ($ExcludedDirectories -contains $segment) {
             return $true
         }
     }
-
     return $false
 }
 
@@ -60,48 +51,52 @@ function Test-IsSensitiveFile {
     param([System.IO.FileInfo]$File)
 
     $name = $File.Name.ToLowerInvariant()
+    $extension = $File.Extension.ToLowerInvariant()
 
     if ($name -eq ".env" -or $name.StartsWith(".env.")) { return $true }
-    if ($name -like "*.pem" -or $name -like "*.key" -or $name -like "*.pfx" -or $name -like "*.p12") { return $true }
-    if ($name -like "*secret*" -or $name -like "*credentials*") { return $true }
+    if ($name -match '(^|[._-])(secret|secrets|credentials|credential)([._-]|$)') { return $true }
+    if ($name -match '(^|[._-])(private[-_]?key|id_rsa|id_ed25519)([._-]|$)') { return $true }
+    if ($extension -in @(".pem", ".p12", ".pfx", ".key", ".crt", ".cer")) { return $true }
 
     return $false
 }
 
-$Files = Get-ChildItem -Path $ProjectRoot -Recurse -File -Force | ForEach-Object {
-    $relativePath = Get-RelativeProjectPath -FullName $_.FullName
+$Files = @(
+    Get-ChildItem -Path $ProjectRoot -Recurse -File -Force | ForEach-Object {
+        $relativePath = Get-RelativeProjectPath -FullName $_.FullName
 
-    if (Test-IsExcludedPath -RelativePath $relativePath) { return }
-    if ($ExcludedFileNames -contains $_.Name) { return }
-    if (Test-IsSensitiveFile -File $_) { return }
-    if ($AllowedExtensions -notcontains $_.Extension.ToLowerInvariant()) { return }
+        if (Test-IsExcludedPath -RelativePath $relativePath) { return }
+        if ($ExcludedFileNames -contains $_.Name) { return }
+        if (Test-IsSensitiveFile -File $_) { return }
+        if ($AllowedExtensions -notcontains $_.Extension.ToLowerInvariant()) { return }
 
-    [PSCustomObject]@{
-        File = $_
-        RelativePath = $relativePath
-    }
-} | Sort-Object RelativePath
+        [PSCustomObject]@{
+            File = $_
+            RelativePath = $relativePath
+        }
+    } | Sort-Object RelativePath
+)
 
 $Builder = New-Object System.Text.StringBuilder
 [void]$Builder.AppendLine("# QC Tote Rental Code Snapshot")
-[void]$Builder.AppendLine("")
+[void]$Builder.AppendLine()
 [void]$Builder.AppendLine("Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss zzz')")
-[void]$Builder.AppendLine("")
+[void]$Builder.AppendLine()
 [void]$Builder.AppendLine("> Security note: environment files, common secret files, dependencies, build output, Git data, and generated Prisma client files are excluded. Review this snapshot before sharing.")
-[void]$Builder.AppendLine("")
+[void]$Builder.AppendLine()
 [void]$Builder.AppendLine("## File Index")
-[void]$Builder.AppendLine("")
+[void]$Builder.AppendLine()
 
 foreach ($entry in $Files) {
-    [void]$Builder.AppendLine("- ``$($entry.RelativePath)``")
+    [void]$Builder.AppendLine("- $($entry.RelativePath)")
 }
 
-[void]$Builder.AppendLine("")
+[void]$Builder.AppendLine()
 [void]$Builder.AppendLine("---")
-[void]$Builder.AppendLine("")
+[void]$Builder.AppendLine()
 
 foreach ($entry in $Files) {
-    $extension = $entry.File.Extension.ToLowerInvariant().TrimStart(".")
+    $extension = $entry.File.Extension.ToLowerInvariant().TrimStart('.')
     $language = switch ($extension) {
         "ts" { "typescript" }
         "tsx" { "tsx" }
@@ -114,6 +109,7 @@ foreach ($entry in $Files) {
         "scss" { "scss" }
         "md" { "markdown" }
         "prisma" { "prisma" }
+        "sql" { "sql" }
         "yml" { "yaml" }
         "yaml" { "yaml" }
         "toml" { "toml" }
@@ -121,23 +117,17 @@ foreach ($entry in $Files) {
         default { "text" }
     }
 
+    $content = [System.IO.File]::ReadAllText($entry.File.FullName)
+
     [void]$Builder.AppendLine("## $($entry.RelativePath)")
-    [void]$Builder.AppendLine("")
-    [void]$Builder.AppendLine("````$language")
-
-    try {
-        $content = [System.IO.File]::ReadAllText($entry.File.FullName)
-        [void]$Builder.Append($content)
-        if (-not $content.EndsWith("`n")) {
-            [void]$Builder.AppendLine("")
-        }
+    [void]$Builder.AppendLine()
+    [void]$Builder.AppendLine("~~~$language")
+    [void]$Builder.Append($content)
+    if (-not $content.EndsWith("`n")) {
+        [void]$Builder.AppendLine()
     }
-    catch {
-        [void]$Builder.AppendLine("[Unable to read file: $($_.Exception.Message)]")
-    }
-
-    [void]$Builder.AppendLine("````")
-    [void]$Builder.AppendLine("")
+    [void]$Builder.AppendLine("~~~")
+    [void]$Builder.AppendLine()
 }
 
 $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
@@ -152,4 +142,4 @@ Write-Host "Files included: $($Files.Count)"
 Write-Host "Output: $OutputFile"
 Write-Host "Size: $SizeMb MB"
 Write-Host ""
-Write-Host "Before sharing, open the snapshot and search for PASSWORD, SECRET, API_KEY, TOKEN, and PRIVATE KEY." -ForegroundColor Yellow
+Write-Host "Before sharing, review the snapshot for passwords, secrets, API keys, tokens, private keys, and database URLs." -ForegroundColor Yellow

@@ -13,16 +13,17 @@ export default async function EditArticlePage({ params }: { params: Promise<{ ex
 
   return <ArticleEditor initialArticle={{
     externalId: article.externalId,
-    title: article.title ?? "",
-    slug: article.slug ?? "",
-    subtitle: article.subtitle ?? "",
+    title: article.title ?? "", slug: article.slug ?? "", subtitle: article.subtitle ?? "",
     category: article.category ?? "Moving Tips",
     authorName: article.authorName ?? "QC Tote Rental Editorial Team",
-    imageUrl: article.imageUrl ?? "",
-    readTime: article.readTime ?? "",
-    metaTitle: article.metaTitle ?? "",
-    metaDescription: article.metaDescription ?? "",
-    contentHtml: article.contentHtml ?? "",
-    publishedAt: article.publishedAt?.toISOString() ?? "",
+    imageUrl: article.imageUrl ?? "", readTime: article.readTime ?? "",
+    metaTitle: article.metaTitle ?? "", metaDescription: article.metaDescription ?? "",
+    contentHtml: article.contentHtml ?? "", publishedAt: article.publishedAt?.toISOString() ?? "",
+    facebookBlurb: article.facebookBlurb ?? "",
+    facebookPostingEnabled: article.facebookPostingEnabled,
+    facebookPostStatus: article.facebookPostStatus,
+    facebookPostUrl: article.facebookPostUrl ?? "",
+    facebookPostedAt: article.facebookPostedAt?.toISOString() ?? "",
+    facebookPostError: article.facebookPostError ?? "",
   }} />;
 }

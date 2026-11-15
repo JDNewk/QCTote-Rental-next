@@ -47,6 +47,12 @@ export default async function NewArticlePage({ searchParams }: NewArticlePagePro
         metaDescription: "",
         contentHtml: "",
         publishedAt: "",
+        facebookBlurb: "",
+        facebookPostingEnabled: false,
+        facebookPostStatus: "NOT_REQUESTED" as const,
+        facebookPostUrl: "",
+        facebookPostedAt: "",
+        facebookPostError: "",
       }
     : undefined;
 
@@ -57,24 +63,14 @@ export default async function NewArticlePage({ searchParams }: NewArticlePagePro
           Back to all articles
         </Link>
 
-        <div className="mt-6">
-          {preparedPackage ? (
-            <ArticlePackageImporter
-              initialPackage={preparedPackage}
-              packageName={packageName}
-            />
-          ) : (
-            <>
-              {calendarItem ? (
-                <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                  A prepared package is not stored for this calendar topic yet. You can add one from the Publishing Calendar, or use the planned title and slug below.
-                </div>
-              ) : null}
-              <ArticlePackageImporter />
-              <ArticleEditor initialArticle={fallbackArticle} />
-            </>
-          )}
-        </div>
+        {preparedPackage ? (
+          <ArticlePackageImporter
+            initialPackage={preparedPackage}
+            packageName={packageName}
+          />
+        ) : null}
+
+        <ArticleEditor initialArticle={fallbackArticle} />
       </div>
     </main>
   );
