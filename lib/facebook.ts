@@ -1,4 +1,3 @@
-
 type FacebookApiError = {
   error?: {
     message?: string;
@@ -13,16 +12,27 @@ type FacebookPublishResponse = FacebookApiError & {
   id?: string;
 };
 
+type FacebookDeleteResponse = FacebookApiError & {
+  success?: boolean;
+};
+
 export type FacebookPublishResult = {
   postId: string;
   postUrl: string;
+};
+
+export type FacebookDeleteResult = {
+  postId: string;
+  success: true;
 };
 
 function requiredEnvironmentVariable(name: string): string {
   const value = process.env[name]?.trim();
 
   if (!value) {
-    throw new Error(`Facebook publishing is not configured: missing ${name}.`);
+    throw new Error(
+      `Facebook publishing is not configured: missing ${name}.`,
+    );
   }
 
   return value;
@@ -30,9 +40,11 @@ function requiredEnvironmentVariable(name: string): string {
 
 function facebookConfiguration() {
   const pageId = requiredEnvironmentVariable("FACEBOOK_PAGE_ID");
+
   const pageAccessToken = requiredEnvironmentVariable(
     "FACEBOOK_PAGE_ACCESS_TOKEN",
   );
+
   const graphApiVersion = requiredEnvironmentVariable(
     "FACEBOOK_GRAPH_API_VERSION",
   );
@@ -63,6 +75,18 @@ function facebookErrorMessage(
   return `Facebook API request failed with HTTP ${status}.`;
 }
 
+async function facebookJsonResponse<T extends FacebookApiError>(
+  response: Response,
+): Promise<T> {
+  try {
+    return (await response.json()) as T;
+  } catch {
+    throw new Error(
+      `Facebook API returned an unreadable response with HTTP ${response.status}.`,
+    );
+  }
+}
+
 export async function publishFacebookPost({
   message,
   link,
@@ -86,7 +110,9 @@ export async function publishFacebookPost({
   try {
     articleUrl = new URL(trimmedLink);
   } catch {
-    throw new Error("Facebook article link must be a valid absolute URL.");
+    throw new Error(
+      "Facebook article link must be a valid absolute URL.",
+    );
   }
 
   if (articleUrl.protocol !== "https:") {
@@ -100,7 +126,8 @@ export async function publishFacebookPost({
   } = facebookConfiguration();
 
   const endpoint =
-    `https://graph.facebook.com/${graphApiVersion}/${encodeURIComponent(pageId)}/feed`;
+    `https://graph.facebook.com/${graphApiVersion}/` +
+    `${encodeURIComponent(pageId)}/feed`;
 
   const response = await fetch(endpoint, {
     method: "POST",
@@ -116,18 +143,13 @@ export async function publishFacebookPost({
     cache: "no-store",
   });
 
-  let payload: FacebookPublishResponse;
-
-  try {
-    payload = (await response.json()) as FacebookPublishResponse;
-  } catch {
-    throw new Error(
-      `Facebook API returned an unreadable response with HTTP ${response.status}.`,
-    );
-  }
+  const payload =
+    await facebookJsonResponse<FacebookPublishResponse>(response);
 
   if (!response.ok || payload.error) {
-    throw new Error(facebookErrorMessage(payload, response.status));
+    throw new Error(
+      facebookErrorMessage(payload, response.status),
+    );
   }
 
   if (!payload.id?.trim()) {
@@ -141,5 +163,54 @@ export async function publishFacebookPost({
   return {
     postId,
     postUrl: `https://www.facebook.com/${postId}`,
+  };
+}
+
+export async function deleteFacebookPost(
+  postId: string,
+): Promise<FacebookDeleteResult> {
+  const trimmedPostId = postId.trim();
+
+  if (!trimmedPostId) {
+    throw new Error(
+      "A Facebook post ID is required before the post can be removed.",
+    );
+  }
+
+  const {
+    pageAccessToken,
+    graphApiVersion,
+  } = facebookConfiguration();
+
+  const endpoint =
+    `https://graph.facebook.com/${graphApiVersion}/` +
+    encodeURIComponent(trimmedPostId);
+
+  const response = await fetch(endpoint, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${pageAccessToken}`,
+    },
+    cache: "no-store",
+  });
+
+  const payload =
+    await facebookJsonResponse<FacebookDeleteResponse>(response);
+
+  if (!response.ok || payload.error) {
+    throw new Error(
+      facebookErrorMessage(payload, response.status),
+    );
+  }
+
+  if (payload.success !== true) {
+    throw new Error(
+      "Facebook API did not confirm that the post was removed.",
+    );
+  }
+
+  return {
+    postId: trimmedPostId,
+    success: true,
   };
 }

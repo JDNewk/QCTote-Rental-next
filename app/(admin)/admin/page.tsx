@@ -23,6 +23,38 @@ function formatCentralDateTime(date: Date) {
   }).format(date);
 }
 
+function facebookStatusLabel(status: AdminArticle["facebookPostStatus"]) {
+  switch (status) {
+    case "PENDING":
+      return "Pending";
+    case "POSTED":
+      return "Posted";
+    case "FAILED":
+      return "Failed";
+    case "REMOVED":
+      return "Removed";
+    case "NOT_REQUESTED":
+    default:
+      return "Not requested";
+  }
+}
+
+function facebookStatusClass(status: AdminArticle["facebookPostStatus"]) {
+  switch (status) {
+    case "PENDING":
+      return "bg-amber-100 text-amber-800";
+    case "POSTED":
+      return "bg-blue-100 text-blue-800";
+    case "FAILED":
+      return "bg-red-100 text-red-800";
+    case "REMOVED":
+      return "bg-slate-200 text-slate-700";
+    case "NOT_REQUESTED":
+    default:
+      return "bg-slate-100 text-slate-600";
+  }
+}
+
 export default async function AdminPage() {
   await connection();
   await requireAdmin();
@@ -75,6 +107,7 @@ export default async function AdminPage() {
             <Link href="/admin/articles/new" className="rounded-lg bg-slate-950 px-5 py-3 font-bold text-white hover:bg-lime-500 hover:text-slate-950">New Article</Link>
           </div>
         </div>
+
         <PublishingCalendar
           articles={articles.map((article: AdminArticle) => ({
             externalId: article.externalId,
@@ -84,11 +117,13 @@ export default async function AdminPage() {
           storedPackageSlugs={preparedPackageSlugs}
           publishedArticles={publishedArticles}
         />
+
         <section className="mt-10">
           <div className="mb-4">
             <h2 className="text-2xl font-black text-slate-950">All articles</h2>
-            <p className="mt-1 text-sm text-slate-600">Every draft, scheduled article, and published post in the database.</p>
+            <p className="mt-1 text-sm text-slate-600">Every draft, scheduled article, and published post in the database, including Facebook publishing status.</p>
           </div>
+
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             {articles.length === 0 ? (
               <div className="p-10 text-center text-slate-600">No articles yet.</div>
@@ -104,17 +139,37 @@ export default async function AdminPage() {
                       : isScheduled && article.publishedAt
                         ? `Scheduled for ${formatCentralDateTime(article.publishedAt)}`
                         : "Not publicly visible";
+
                   return (
                     <div key={article.externalId} className="flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-3">
                           <h3 className="truncate text-xl font-black text-slate-950">{article.title || "Untitled article"}</h3>
                           <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${isPublished ? "bg-lime-100 text-lime-800" : isScheduled ? "bg-blue-100 text-blue-800" : "bg-slate-200 text-slate-700"}`}>{status}</span>
+                          <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${facebookStatusClass(article.facebookPostStatus)}`}>
+                            Facebook: {facebookStatusLabel(article.facebookPostStatus)}
+                          </span>
                         </div>
                         <p className="mt-2 text-sm font-semibold text-slate-600">{statusDetail}</p>
                         <p className="mt-1 text-sm text-slate-500">/{article.slug || "no-slug"}</p>
+                        {article.facebookPostStatus === "FAILED" && article.facebookPostError ? (
+                          <p className="mt-2 max-w-3xl text-sm font-semibold text-red-700">
+                            Facebook: {article.facebookPostError}
+                          </p>
+                        ) : null}
                       </div>
+
                       <div className="flex flex-wrap gap-3">
+                        {article.facebookPostStatus === "POSTED" && article.facebookPostUrl ? (
+                          <a
+                            href={article.facebookPostUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="rounded-lg border border-blue-300 px-4 py-2 text-sm font-bold text-blue-700 hover:border-blue-500"
+                          >
+                            Facebook
+                          </a>
+                        ) : null}
                         {article.slug && isPublished ? (
                           <Link href={`/blog/${article.slug}`} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:border-lime-500">View</Link>
                         ) : null}

@@ -1,7 +1,9 @@
-
 import { FacebookPostStatus } from "@/generated/prisma/client";
 import { siteUrl } from "@/config/siteMetadata";
-import { publishFacebookPost } from "@/lib/facebook";
+import {
+  deleteFacebookPost,
+  publishFacebookPost,
+} from "@/lib/facebook";
 import { getPrisma } from "@/lib/prisma";
 
 export type FacebookArticlePublishResult =
@@ -23,13 +25,31 @@ export type FacebookArticlePublishResult =
       message: string;
     };
 
+export type FacebookArticleRemoveResult =
+  | {
+      outcome: "REMOVED";
+      postId: string;
+    }
+  | {
+      outcome:
+        | "NOT_FOUND"
+        | "STILL_PUBLIC"
+        | "NOT_POSTED"
+        | "MISSING_POST_ID"
+        | "FAILED";
+      message: string;
+    };
+
 const MAX_ERROR_LENGTH = 2000;
 
-function errorMessage(error: unknown): string {
+function errorMessage(
+  error: unknown,
+  fallback = "Facebook operation failed for an unknown reason.",
+): string {
   const message =
     error instanceof Error
       ? error.message
-      : "Facebook posting failed for an unknown reason.";
+      : fallback;
 
   return message.trim().slice(0, MAX_ERROR_LENGTH);
 }
@@ -79,7 +99,9 @@ export async function publishArticleToFacebook(
     };
   }
 
-  if (article.facebookPostStatus === FacebookPostStatus.POSTED) {
+  if (
+    article.facebookPostStatus === FacebookPostStatus.POSTED
+  ) {
     return {
       outcome: "ALREADY_POSTED",
       message: "This article has already been posted to Facebook.",
@@ -113,23 +135,16 @@ export async function publishArticleToFacebook(
     };
   }
 
-  if (article.facebookPostStatus !== FacebookPostStatus.PENDING) {
+  if (
+    article.facebookPostStatus !== FacebookPostStatus.PENDING
+  ) {
     return {
       outcome: "NOT_PENDING",
-      message: `The Facebook post status is ${article.facebookPostStatus}, not PENDING.`,
+      message:
+        `The Facebook post status is ${article.facebookPostStatus}, not PENDING.`,
     };
   }
 
-  /*
-   * Claim this exact pending attempt with a compare-and-set update.
-   *
-   * Including the previously read facebookLastAttemptAt value in the WHERE
-   * clause prevents two requests that read the same article state from both
-   * proceeding to Facebook. Only the first request can change the timestamp.
-   *
-   * A later retry can still work because it will read and compare against the
-   * newer timestamp rather than requiring the field to remain null.
-   */
   const claimTime = new Date();
 
   const claim = await prisma.article.updateMany({
@@ -183,7 +198,10 @@ export async function publishArticleToFacebook(
       postUrl: result.postUrl,
     };
   } catch (error) {
-    const message = errorMessage(error);
+    const message = errorMessage(
+      error,
+      "Facebook posting failed for an unknown reason.",
+    );
 
     try {
       await prisma.article.update({
@@ -198,6 +216,119 @@ export async function publishArticleToFacebook(
     } catch (databaseError) {
       console.error(
         "Facebook posting failed, and the failure status could not be saved:",
+        databaseError,
+      );
+    }
+
+    return {
+      outcome: "FAILED",
+      message,
+    };
+  }
+}
+
+export async function removeArticleFromFacebook(
+  externalId: string,
+): Promise<FacebookArticleRemoveResult> {
+  const normalizedExternalId = externalId.trim();
+
+  if (!normalizedExternalId) {
+    return {
+      outcome: "NOT_FOUND",
+      message: "An article ID is required.",
+    };
+  }
+
+  const prisma = getPrisma();
+
+  const article = await prisma.article.findUnique({
+    where: {
+      externalId: normalizedExternalId,
+    },
+    select: {
+      externalId: true,
+      publishedAt: true,
+      facebookPostStatus: true,
+      facebookPostId: true,
+    },
+  });
+
+  if (!article) {
+    return {
+      outcome: "NOT_FOUND",
+      message: "The article was not found.",
+    };
+  }
+
+  const now = new Date();
+
+  if (
+    article.publishedAt &&
+    article.publishedAt <= now
+  ) {
+    return {
+      outcome: "STILL_PUBLIC",
+      message:
+        "The article is still public, so its Facebook post will not be removed.",
+    };
+  }
+
+  if (
+    article.facebookPostStatus !== FacebookPostStatus.POSTED
+  ) {
+    return {
+      outcome: "NOT_POSTED",
+      message:
+        `The Facebook post status is ${article.facebookPostStatus}, not POSTED.`,
+    };
+  }
+
+  const postId = article.facebookPostId?.trim() ?? "";
+
+  if (!postId) {
+    return {
+      outcome: "MISSING_POST_ID",
+      message:
+        "The article is marked POSTED but does not have a stored Facebook post ID.",
+    };
+  }
+
+  try {
+    await deleteFacebookPost(postId);
+
+    await prisma.article.update({
+      where: {
+        externalId: article.externalId,
+      },
+      data: {
+        facebookPostStatus: FacebookPostStatus.REMOVED,
+        facebookPostError: null,
+      },
+    });
+
+    return {
+      outcome: "REMOVED",
+      postId,
+    };
+  } catch (error) {
+    const message = errorMessage(
+      error,
+      "Facebook post removal failed for an unknown reason.",
+    );
+
+    try {
+      await prisma.article.update({
+        where: {
+          externalId: article.externalId,
+        },
+        data: {
+          facebookPostStatus: FacebookPostStatus.FAILED,
+          facebookPostError: message,
+        },
+      });
+    } catch (databaseError) {
+      console.error(
+        "Facebook removal failed, and the failure status could not be saved:",
         databaseError,
       );
     }

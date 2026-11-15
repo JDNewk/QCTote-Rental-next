@@ -1,0 +1,1 @@
+ALTER TYPE "FacebookPostStatus" ADD VALUE IF NOT EXISTS 'REMOVED';

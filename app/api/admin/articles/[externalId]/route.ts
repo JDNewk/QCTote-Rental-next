@@ -1,31 +1,120 @@
 import { NextResponse } from "next/server";
+import { FacebookPostStatus } from "@/generated/prisma/client";
 import { isAdmin, isSameOrigin } from "@/lib/adminAuth";
-import { publishArticleToFacebook } from "@/lib/facebookArticlePublisher";
+import { removeArticleFromFacebook } from "@/lib/facebookArticlePublisher";
 import { getPrisma } from "@/lib/prisma";
-import { articleJsonLd, validateArticleInput } from "@/lib/manualArticle";
+import {
+  articleJsonLd,
+  validateArticleInput,
+} from "@/lib/manualArticle";
 
-export async function PUT(request: Request, { params }: { params: Promise<{ externalId: string }> }) {
-  if (!(await isAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!isSameOrigin(request)) return NextResponse.json({ error: "Invalid origin" }, { status: 403 });
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ externalId: string }> },
+) {
+  if (!(await isAdmin())) {
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401 },
+    );
+  }
+
+  if (!isSameOrigin(request)) {
+    return NextResponse.json(
+      { error: "Invalid origin" },
+      { status: 403 },
+    );
+  }
 
   try {
     const { externalId } = await params;
-    const fields = validateArticleInput(await request.json());
+    const prisma = getPrisma();
 
-    await getPrisma().article.update({
-      where: { externalId },
-      data: { ...fields, jsonLdSchema: articleJsonLd(fields) },
+    const existingArticle = await prisma.article.findUnique({
+      where: {
+        externalId,
+      },
+      select: {
+        publishedAt: true,
+        facebookPostStatus: true,
+        facebookPostId: true,
+      },
     });
 
+    if (!existingArticle) {
+      return NextResponse.json(
+        { error: "The article was not found." },
+        { status: 404 },
+      );
+    }
+
+    const fields = validateArticleInput(await request.json());
+    const now = new Date();
+
+    const wasPublic =
+      existingArticle.publishedAt !== null &&
+      existingArticle.publishedAt <= now;
+
+    const willBePublic =
+      fields.publishedAt !== null &&
+      fields.publishedAt <= now;
+
+    const isBeingRepublishedAfterRemoval =
+      existingArticle.facebookPostStatus ===
+        FacebookPostStatus.REMOVED &&
+      fields.facebookPostStatus ===
+        FacebookPostStatus.PENDING;
+
+    await prisma.article.update({
+      where: {
+        externalId,
+      },
+      data: {
+        ...fields,
+        jsonLdSchema: articleJsonLd(fields),
+
+        /*
+         * A removed Facebook post no longer exists. When its article
+         * is republished with Facebook approval still enabled, clear
+         * the old post metadata so the scheduled processor can create
+         * and track a new Facebook post.
+         */
+        ...(isBeingRepublishedAfterRemoval
+          ? {
+              facebookPostId: null,
+              facebookPostUrl: null,
+              facebookPostedAt: null,
+              facebookLastAttemptAt: null,
+              facebookPostError: null,
+            }
+          : {}),
+      },
+    });
+
+    /*
+     * Facebook publishing is handled by the scheduled Netlify
+     * processor. This gives a newly published article time to become
+     * publicly available before Facebook requests its URL.
+     *
+     * Facebook removal is handled immediately when an article
+     * transitions from public to unpublished or future-scheduled.
+     */
     let facebookResult = null;
 
-    try {
-      facebookResult = await publishArticleToFacebook(externalId);
-    } catch (facebookError) {
-      console.error(
-        `Unexpected Facebook publishing error for article ${externalId}:`,
-        facebookError,
-      );
+    if (
+      wasPublic &&
+      !willBePublic &&
+      existingArticle.facebookPostId
+    ) {
+      try {
+        facebookResult =
+          await removeArticleFromFacebook(externalId);
+      } catch (facebookError) {
+        console.error(
+          `Unexpected Facebook removal error for article ${externalId}:`,
+          facebookError,
+        );
+      }
     }
 
     return NextResponse.json({
@@ -39,14 +128,38 @@ export async function PUT(request: Request, { params }: { params: Promise<{ exte
         ? error.message
         : "The article could not be updated.";
 
-    return NextResponse.json({ error: message }, { status: 400 });
+    return NextResponse.json(
+      { error: message },
+      { status: 400 },
+    );
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: Promise<{ externalId: string }> }) {
-  if (!(await isAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!isSameOrigin(request)) return NextResponse.json({ error: "Invalid origin" }, { status: 403 });
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ externalId: string }> },
+) {
+  if (!(await isAdmin())) {
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401 },
+    );
+  }
+
+  if (!isSameOrigin(request)) {
+    return NextResponse.json(
+      { error: "Invalid origin" },
+      { status: 403 },
+    );
+  }
+
   const { externalId } = await params;
-  await getPrisma().article.delete({ where: { externalId } });
+
+  await getPrisma().article.delete({
+    where: {
+      externalId,
+    },
+  });
+
   return NextResponse.json({ ok: true });
 }
