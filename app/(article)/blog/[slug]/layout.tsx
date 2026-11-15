@@ -1,9 +1,8 @@
+import type { Metadata } from "next";
 import "../../../globals.css";
 import SiteBody from "@/components/SiteBody";
-import { serializeJsonLd, siteMetadata } from "@/config/siteMetadata";
+import { serializeJsonLd, siteMetadata, siteUrl } from "@/config/siteMetadata";
 import { getArticleBySlug, parseJsonLd } from "@/lib/articles";
-
-export const metadata = siteMetadata;
 
 // Article pages render fully on the server before responding, so a missing
 // slug returns a real 404 status and the JSON-LD can be placed in <head>.
@@ -18,9 +17,72 @@ export function generateStaticParams() {
   return [{ slug: PLACEHOLDER_SLUG }];
 }
 
+export async function generateMetadata({
+  params,
+}: LayoutProps<"/blog/[slug]">): Promise<Metadata> {
+  const { slug } = await params;
+  const article = await getArticleBySlug(slug);
+
+  if (!article) {
+    return siteMetadata;
+  }
+
+  const title =
+    article.metaTitle?.trim() ||
+    article.title?.trim() ||
+    "QC Tote Rental";
+
+  const description =
+    article.metaDescription?.trim() ||
+    article.subtitle?.trim() ||
+    siteMetadata.description;
+
+  const canonicalUrl = `${siteUrl}/blog/${article.slug ?? slug}`;
+  const imageUrl = article.imageUrl?.trim();
+
+  return {
+    metadataBase: siteMetadata.metadataBase,
+    title,
+    description,
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    openGraph: {
+      title,
+      description: description ?? undefined,
+      url: canonicalUrl,
+      siteName: "QC Tote Rental",
+      type: "article",
+      ...(imageUrl
+        ? {
+            images: [
+              {
+                url: imageUrl,
+                alt: article.title?.trim() || title,
+              },
+            ],
+          }
+        : {}),
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description: description ?? undefined,
+      ...(imageUrl
+        ? {
+            images: [imageUrl],
+          }
+        : {}),
+    },
+  };
+}
+
 // Root layout for article pages. It lives in its own route group so it can
 // put each article's JSON-LD schema in the document <head>.
-export default async function ArticleRootLayout({ children, params }: LayoutProps<"/blog/[slug]">) {
+export default async function ArticleRootLayout({
+  children,
+  params,
+}: LayoutProps<"/blog/[slug]">) {
   const { slug } = await params;
   const article = await getArticleBySlug(slug);
   const jsonLd = parseJsonLd(article?.jsonLdSchema);
@@ -29,7 +91,10 @@ export default async function ArticleRootLayout({ children, params }: LayoutProp
     <html lang={article?.languageCode || "en"}>
       <head>
         {jsonLd && (
-          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
+          />
         )}
       </head>
       <SiteBody>{children}</SiteBody>
