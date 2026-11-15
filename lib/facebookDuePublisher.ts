@@ -1,4 +1,3 @@
-
 import { FacebookPostStatus } from "@/generated/prisma/client";
 import {
   publishArticleToFacebook,
@@ -8,6 +7,7 @@ import { getPrisma } from "@/lib/prisma";
 
 const DEFAULT_BATCH_SIZE = 5;
 const MAX_BATCH_SIZE = 10;
+const FACEBOOK_PUBLICATION_DELAY_MS = 5 * 60 * 1000;
 
 export type DueFacebookArticleResult = {
   externalId: string;
@@ -16,6 +16,7 @@ export type DueFacebookArticleResult = {
 
 export type DueFacebookPublishSummary = {
   checkedAt: string;
+  eligibleBefore: string;
   eligibleCount: number;
   processedCount: number;
   postedCount: number;
@@ -43,13 +44,16 @@ export async function publishDueFacebookArticles(
 ): Promise<DueFacebookPublishSummary> {
   const prisma = getPrisma();
   const checkedAt = new Date();
+  const eligibleBefore = new Date(
+    checkedAt.getTime() - FACEBOOK_PUBLICATION_DELAY_MS,
+  );
   const take = normalizedBatchSize(batchSize);
 
   const dueArticles = await prisma.article.findMany({
     where: {
       publishedAt: {
         not: null,
-        lte: checkedAt,
+        lte: eligibleBefore,
       },
       facebookPostingEnabled: true,
       facebookPostStatus: FacebookPostStatus.PENDING,
@@ -124,6 +128,7 @@ export async function publishDueFacebookArticles(
 
   return {
     checkedAt: checkedAt.toISOString(),
+    eligibleBefore: eligibleBefore.toISOString(),
     eligibleCount: dueArticles.length,
     processedCount: results.length,
     postedCount,
