@@ -17,25 +17,69 @@ export function generateStaticParams() {
   return [{ slug: PLACEHOLDER_SLUG }];
 }
 
-function socialImageUrl(imageUrl: string | null | undefined): string | undefined {
-  const value = imageUrl?.trim();
-  if (!value) return undefined;
+function normalizedArticleImageUrl(
+  imageUrl: string | null | undefined,
+  version?: string,
+) {
+  const trimmed = imageUrl?.trim();
+
+  if (!trimmed) {
+    return undefined;
+  }
 
   try {
-    const url = new URL(value, siteUrl);
+    const parsed = new URL(trimmed, siteUrl);
 
-    // Article images are public through the production site's image endpoint.
-    // Older packages may have stored a Netlify deploy-preview hostname when an
-    // image was uploaded from a preview deployment. Social crawlers should
-    // always receive the stable production-domain equivalent.
-    if (url.pathname.startsWith("/api/article-images/")) {
-      return new URL(`${url.pathname}${url.search}`, siteUrl).toString();
+    if (parsed.pathname.startsWith("/api/article-images/")) {
+      const productionUrl = new URL(parsed.pathname, siteUrl);
+
+      if (version) {
+        productionUrl.searchParams.set("v", version);
+      }
+
+      return productionUrl.toString();
     }
 
-    return url.toString();
+    return parsed.toString();
   } catch {
     return undefined;
   }
+}
+
+function normalizeJsonLdArticleImages(
+  value: unknown,
+  version?: string,
+): unknown {
+  if (typeof value === "string") {
+    try {
+      const parsed = new URL(value, siteUrl);
+
+      if (parsed.pathname.startsWith("/api/article-images/")) {
+        return normalizedArticleImageUrl(value, version) ?? value;
+      }
+    } catch {
+      return value;
+    }
+
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeJsonLdArticleImages(item, version));
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [
+        key,
+        key === "image"
+          ? normalizeJsonLdArticleImages(item, version)
+          : normalizeJsonLdArticleImages(item, version),
+      ]),
+    );
+  }
+
+  return value;
 }
 
 export async function generateMetadata({
@@ -59,7 +103,13 @@ export async function generateMetadata({
     siteMetadata.description;
 
   const canonicalUrl = `${siteUrl}/blog/${article.slug ?? slug}`;
-  const imageUrl = socialImageUrl(article.imageUrl);
+  const imageVersion = article.updatedAt
+    ? new Date(article.updatedAt).getTime().toString()
+    : undefined;
+  const imageUrl = normalizedArticleImageUrl(
+    article.imageUrl,
+    imageVersion,
+  );
 
   return {
     metadataBase: siteMetadata.metadataBase,
@@ -74,6 +124,15 @@ export async function generateMetadata({
       url: canonicalUrl,
       siteName: "QC Tote Rental",
       type: "article",
+      ...(article.publishedAt
+        ? { publishedTime: article.publishedAt.toISOString() }
+        : {}),
+      ...(article.updatedAt
+        ? { modifiedTime: article.updatedAt.toISOString() }
+        : {}),
+      ...(article.authorName?.trim()
+        ? { authors: [article.authorName.trim()] }
+        : {}),
       ...(imageUrl
         ? {
             images: [
@@ -107,16 +166,27 @@ export default async function ArticleRootLayout({
   const { slug } = await params;
   const article = await getArticleBySlug(slug);
   const jsonLd = parseJsonLd(article?.jsonLdSchema);
+  const imageVersion = article?.updatedAt
+    ? new Date(article.updatedAt).getTime().toString()
+    : undefined;
+  const normalizedJsonLd = jsonLd
+    ? normalizeJsonLdArticleImages(jsonLd, imageVersion)
+    : null;
+  const normalizedJsonLdHtml = normalizedJsonLd
+    ? serializeJsonLd(normalizedJsonLd)
+    : null;
 
   return (
     <html lang={article?.languageCode || "en"}>
       <head>
-        {jsonLd && (
+        {normalizedJsonLdHtml ? (
           <script
             type="application/ld+json"
-            dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
+            dangerouslySetInnerHTML={{
+              __html: normalizedJsonLdHtml,
+            }}
           />
-        )}
+        ) : null}
       </head>
       <SiteBody>{children}</SiteBody>
     </html>
