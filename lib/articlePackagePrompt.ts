@@ -25,11 +25,21 @@ SEO AND LINKS
 - Never infer or manufacture a /blog/ slug.
 
 FACEBOOK BLURB
-- Include facebookBlurb as an editable proposal for a future Facebook Page post.
-- Keep it practical, accurate, and concise.
-- Summarize why the article is useful without unsupported claims or exaggerated marketing language.
-- Do not include a URL. The publishing system will append the saved article's real URL later.
-- The blurb is a draft for human review, not authorization to post.
+- Include facebookBlurb as an editable proposal for a Facebook Page post.
+- Write it as one compact paragraph by default, generally 1-2 sentences.
+- Put the complete useful point in the first sentence so it still works if Facebook truncates later text.
+- Give someone a natural reason to open the article without summarizing every section.
+- Complement the article headline rather than simply repeating or paraphrasing it.
+- Do not write it like an SEO meta description.
+- Do not add a manual line break after an opening hook or question.
+- Keep it concise, practical, conversational, and accurate.
+- Do not include a URL. The publishing system attaches the saved article's real URL.
+- Do not use hashtags by default.
+- Use zero to two emojis at most, and only when they are genuinely useful and appropriate to the article.
+- Do not invent urgency, statistics, testimonials, discounts, savings, environmental claims, safety claims, or other unsupported claims.
+- Mention QC Tote Rental naturally only when relevant.
+- The blurb should make sense immediately above the shared article preview, which already supplies the article title, description, and featured image.
+- The blurb is a draft for human review. Generating it does not authorize Facebook publishing.
 
 ARTICLE HTML
 - contentHtml must contain article-body HTML only, without the page H1.
@@ -63,7 +73,8 @@ Return valid JSON only, using this structure:
 
 FINAL VALIDATION
 - Version is exactly 3 and slug exactly matches the calendar slug.
-- facebookBlurb is present, URL-free, accurate, and ready for human editing.
+- facebookBlurb is present, URL-free, accurate, written as compact natural Facebook copy, and ready for human editing.
+- facebookBlurb's first sentence contains the useful point and does not depend on later text being visible.
 - contentHtml is valid HTML.
 - No unsupported claims or invented URLs exist.
 - All body markers match image IDs.
