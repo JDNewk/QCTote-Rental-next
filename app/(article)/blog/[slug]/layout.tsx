@@ -46,6 +46,39 @@ function normalizedArticleImageUrl(
   }
 }
 
+function socialPreviewImageUrl(
+  imageUrl: string | null | undefined,
+  version?: string,
+) {
+  const normalized = normalizedArticleImageUrl(imageUrl, version);
+
+  if (!normalized) {
+    return undefined;
+  }
+
+  try {
+    const source = new URL(normalized);
+
+    // Netlify Image CDN accepts a site-relative source path. The source keeps
+    // the article version query so an updated article receives a fresh cached
+    // derivative without changing the original stored image.
+    const sourcePath = `${source.pathname}${source.search}`;
+    const socialUrl = new URL("/.netlify/images", siteUrl);
+
+    socialUrl.searchParams.set("url", sourcePath);
+    socialUrl.searchParams.set("w", "1200");
+    socialUrl.searchParams.set("h", "630");
+    socialUrl.searchParams.set("fit", "cover");
+    socialUrl.searchParams.set("position", "center");
+    socialUrl.searchParams.set("fm", "jpg");
+    socialUrl.searchParams.set("q", "85");
+
+    return socialUrl.toString();
+  } catch {
+    return undefined;
+  }
+}
+
 function normalizeJsonLdArticleImages(
   value: unknown,
   version?: string,
@@ -55,7 +88,7 @@ function normalizeJsonLdArticleImages(
       const parsed = new URL(value, siteUrl);
 
       if (parsed.pathname.startsWith("/api/article-images/")) {
-        return normalizedArticleImageUrl(value, version) ?? value;
+        return socialPreviewImageUrl(value, version) ?? value;
       }
     } catch {
       return value;
@@ -65,7 +98,9 @@ function normalizeJsonLdArticleImages(
   }
 
   if (Array.isArray(value)) {
-    return value.map((item) => normalizeJsonLdArticleImages(item, version));
+    return value.map((item) =>
+      normalizeJsonLdArticleImages(item, version),
+    );
   }
 
   if (value && typeof value === "object") {
@@ -74,7 +109,7 @@ function normalizeJsonLdArticleImages(
         key,
         key === "image"
           ? normalizeJsonLdArticleImages(item, version)
-          : normalizeJsonLdArticleImages(item, version),
+          : item,
       ]),
     );
   }
@@ -106,7 +141,7 @@ export async function generateMetadata({
   const imageVersion = article.updatedAt
     ? new Date(article.updatedAt).getTime().toString()
     : undefined;
-  const imageUrl = normalizedArticleImageUrl(
+  const imageUrl = socialPreviewImageUrl(
     article.imageUrl,
     imageVersion,
   );
@@ -138,7 +173,10 @@ export async function generateMetadata({
             images: [
               {
                 url: imageUrl,
+                width: 1200,
+                height: 630,
                 alt: article.title?.trim() || title,
+                type: "image/jpeg",
               },
             ],
           }
