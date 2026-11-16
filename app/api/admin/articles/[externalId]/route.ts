@@ -59,11 +59,15 @@ export async function PUT(
       fields.publishedAt !== null &&
       fields.publishedAt <= now;
 
-    const isBeingRepublishedAfterRemoval =
-      existingArticle.facebookPostStatus ===
-        FacebookPostStatus.REMOVED &&
-      fields.facebookPostStatus ===
-        FacebookPostStatus.PENDING;
+    /*
+     * Any approved article entering PENDING needs a clean posting record.
+     * This covers republishing after REMOVED as well as older records that
+     * reached PENDING while still retaining a deleted Facebook post ID.
+     * A legitimate POSTED article keeps its existing Facebook metadata.
+     */
+    const shouldResetFacebookPostMetadata =
+      fields.facebookPostStatus === FacebookPostStatus.PENDING &&
+      existingArticle.facebookPostStatus !== FacebookPostStatus.POSTED;
 
     await prisma.article.update({
       where: {
@@ -72,14 +76,7 @@ export async function PUT(
       data: {
         ...fields,
         jsonLdSchema: articleJsonLd(fields),
-
-        /*
-         * A removed Facebook post no longer exists. When its article
-         * is republished with Facebook approval still enabled, clear
-         * the old post metadata so the scheduled processor can create
-         * and track a new Facebook post.
-         */
-        ...(isBeingRepublishedAfterRemoval
+        ...(shouldResetFacebookPostMetadata
           ? {
               facebookPostId: null,
               facebookPostUrl: null,
@@ -92,12 +89,12 @@ export async function PUT(
     });
 
     /*
-     * Facebook publishing is handled by the scheduled Netlify
-     * processor. This gives a newly published article time to become
-     * publicly available before Facebook requests its URL.
+     * Facebook publishing is handled by the scheduled Netlify processor.
+     * This gives a newly published article time to become publicly available
+     * before Facebook requests its URL.
      *
-     * Facebook removal is handled immediately when an article
-     * transitions from public to unpublished or future-scheduled.
+     * Facebook removal is handled immediately when an article transitions
+     * from public to unpublished or future-scheduled.
      */
     let facebookResult = null;
 
