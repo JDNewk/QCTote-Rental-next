@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { getStore } from "@netlify/blobs";
 import { NextResponse } from "next/server";
 import { isAdmin, isSameOrigin } from "@/lib/adminAuth";
+import { siteUrl } from "@/config/siteMetadata";
 
 const STORE_NAME = "qc-article-images";
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
@@ -14,6 +15,7 @@ const ALLOWED_TYPES = new Map([
 
 function safeFileStem(fileName: string) {
   const withoutExtension = fileName.replace(/\.[^.]+$/, "");
+
   return (
     withoutExtension
       .toLowerCase()
@@ -26,11 +28,17 @@ function safeFileStem(fileName: string) {
 
 export async function POST(request: Request) {
   if (!(await isAdmin())) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401 },
+    );
   }
 
   if (!isSameOrigin(request)) {
-    return NextResponse.json({ error: "Invalid origin" }, { status: 403 });
+    return NextResponse.json(
+      { error: "Invalid origin" },
+      { status: 403 },
+    );
   }
 
   try {
@@ -38,10 +46,14 @@ export async function POST(request: Request) {
     const file = formData.get("file");
 
     if (!(file instanceof File)) {
-      return NextResponse.json({ error: "Choose an image to upload." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Choose an image to upload." },
+        { status: 400 },
+      );
     }
 
     const extension = ALLOWED_TYPES.get(file.type);
+
     if (!extension) {
       return NextResponse.json(
         { error: "Use a JPG, PNG, WebP, or GIF image." },
@@ -50,16 +62,25 @@ export async function POST(request: Request) {
     }
 
     if (file.size === 0) {
-      return NextResponse.json({ error: "The selected image is empty." }, { status: 400 });
+      return NextResponse.json(
+        { error: "The selected image is empty." },
+        { status: 400 },
+      );
     }
 
     if (file.size > MAX_IMAGE_BYTES) {
-      return NextResponse.json({ error: "The image must be 8 MB or smaller." }, { status: 413 });
+      return NextResponse.json(
+        { error: "The image must be 8 MB or smaller." },
+        { status: 413 },
+      );
     }
 
     const stem = safeFileStem(file.name);
     const key = `${stem}--${randomUUID().slice(0, 8)}.${extension}`;
-    const store = getStore({ name: STORE_NAME, consistency: "strong" });
+    const store = getStore({
+      name: STORE_NAME,
+      consistency: "strong",
+    });
 
     await store.set(key, file, {
       metadata: {
@@ -70,12 +91,18 @@ export async function POST(request: Request) {
       onlyIfNew: true,
     });
 
-    const origin = new URL(request.url).origin;
-    const url = `${origin}/api/article-images/${encodeURIComponent(key)}`;
+    const url = `${siteUrl}/api/article-images/${encodeURIComponent(key)}`;
 
-    return NextResponse.json({ ok: true, key, url }, { status: 201 });
+    return NextResponse.json(
+      { ok: true, key, url },
+      { status: 201 },
+    );
   } catch (error) {
     console.error("Article image upload failed:", error);
-    return NextResponse.json({ error: "The image could not be uploaded." }, { status: 500 });
+
+    return NextResponse.json(
+      { error: "The image could not be uploaded." },
+      { status: 500 },
+    );
   }
 }

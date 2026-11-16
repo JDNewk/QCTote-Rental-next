@@ -17,6 +17,27 @@ export function generateStaticParams() {
   return [{ slug: PLACEHOLDER_SLUG }];
 }
 
+function socialImageUrl(imageUrl: string | null | undefined): string | undefined {
+  const value = imageUrl?.trim();
+  if (!value) return undefined;
+
+  try {
+    const url = new URL(value, siteUrl);
+
+    // Article images are public through the production site's image endpoint.
+    // Older packages may have stored a Netlify deploy-preview hostname when an
+    // image was uploaded from a preview deployment. Social crawlers should
+    // always receive the stable production-domain equivalent.
+    if (url.pathname.startsWith("/api/article-images/")) {
+      return new URL(`${url.pathname}${url.search}`, siteUrl).toString();
+    }
+
+    return url.toString();
+  } catch {
+    return undefined;
+  }
+}
+
 export async function generateMetadata({
   params,
 }: LayoutProps<"/blog/[slug]">): Promise<Metadata> {
@@ -38,7 +59,7 @@ export async function generateMetadata({
     siteMetadata.description;
 
   const canonicalUrl = `${siteUrl}/blog/${article.slug ?? slug}`;
-  const imageUrl = article.imageUrl?.trim();
+  const imageUrl = socialImageUrl(article.imageUrl);
 
   return {
     metadataBase: siteMetadata.metadataBase,
