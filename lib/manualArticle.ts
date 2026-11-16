@@ -1,5 +1,9 @@
 import { Prisma, FacebookPostStatus } from "@/generated/prisma/client";
 import { siteUrl } from "@/config/siteMetadata";
+import {
+  normalizeArticleImageUrl,
+  normalizeArticleImageUrlsInHtml,
+} from "@/lib/articleImageUrls";
 
 type Input = Record<string, unknown>;
 function optional(value: unknown) { const result = String(value ?? "").trim(); return result || null; }
@@ -13,9 +17,11 @@ function currentStatus(value: unknown): FacebookPostStatus {
 export function validateArticleInput(input: Input) {
   const title = optional(input.title);
   const slug = optional(input.slug)?.toLowerCase();
-  const contentHtml = optional(input.contentHtml);
+  const rawContentHtml = optional(input.contentHtml);
   if (!title) throw new Error("Title is required.");
   if (!slug || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) throw new Error("Use a lowercase slug with words separated by hyphens.");
+  if (!rawContentHtml) throw new Error("Article content is required.");
+  const contentHtml = normalizeArticleImageUrlsInHtml(rawContentHtml);
   if (!contentHtml) throw new Error("Article content is required.");
   const publishedAt = input.publishedAt ? new Date(String(input.publishedAt)) : null;
   if (publishedAt && Number.isNaN(publishedAt.getTime())) throw new Error("The publication date is invalid.");
@@ -35,7 +41,7 @@ export function validateArticleInput(input: Input) {
     title, slug, contentHtml, contentMarkdown: null,
     subtitle: optional(input.subtitle), category: optional(input.category),
     authorName: optional(input.authorName) || "QC Tote Rental Editorial Team",
-    imageUrl: optional(input.imageUrl), readTime: optional(input.readTime),
+    imageUrl: normalizeArticleImageUrl(optional(input.imageUrl)), readTime: optional(input.readTime),
     metaTitle: optional(input.metaTitle) || title,
     metaDescription: optional(input.metaDescription) || optional(input.subtitle),
     publishedAt, updatedAt: new Date(), facebookBlurb, facebookPostingEnabled,

@@ -1,21 +1,43 @@
 import { cache } from "react";
 import { connection } from "next/server";
 import { getPrisma } from "@/lib/prisma";
+import {
+  normalizeArticleImageUrl,
+  normalizeArticleImageUrlsInHtml,
+} from "@/lib/articleImageUrls";
+
+function normalizeArticleImages<T extends { imageUrl?: string | null; contentHtml?: string | null }>(
+  article: T,
+): T {
+  return {
+    ...article,
+    ...(Object.prototype.hasOwnProperty.call(article, "imageUrl")
+      ? { imageUrl: normalizeArticleImageUrl(article.imageUrl) }
+      : {}),
+    ...(Object.prototype.hasOwnProperty.call(article, "contentHtml")
+      ? { contentHtml: normalizeArticleImageUrlsInHtml(article.contentHtml) }
+      : {}),
+  };
+}
 
 export async function getArticleList() {
   await connection();
-  return getPrisma().article.findMany({
+  const articles = await getPrisma().article.findMany({
     where: { slug: { not: null }, publishedAt: { lte: new Date() } },
     orderBy: [{ publishedAt: { sort: "desc", nulls: "last" } }, { updatedAt: "desc" }],
     select: { slug: true, title: true, subtitle: true, metaDescription: true, category: true, imageUrl: true, readTime: true, publishedAt: true },
   });
+
+  return articles.map(normalizeArticleImages);
 }
 
 export const getArticleBySlug = cache(async (slug: string) => {
   await connection();
-  return getPrisma().article.findFirst({
+  const article = await getPrisma().article.findFirst({
     where: { slug, publishedAt: { lte: new Date() } },
   });
+
+  return article ? normalizeArticleImages(article) : null;
 });
 
 export async function getSitemapArticles() {
